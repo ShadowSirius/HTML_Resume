@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jay Huang | Engineering Portfolio</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        :root {
+            /* Screen Colors (Dark IDE Theme) */
+            --bg-main: #0f172a;       /* Main Content (Deep Slate) */
+            --bg-panel: #1e293b;      /* Header (Lighter Slate) */
+            --bg-sidebar: #020617;    /* Sidebar (Darker/Black) */
+            
+            --accent: #38bdf8;
+            --accent-dim: rgba(56, 189, 248, 0.15);
+            
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            
+            --border: #334155;
+            --code-bg: #020617;
+            
+            /* D3 Node Colors */
+            --node-stroke: #4b5563;
+
+            /* Fonts */
+            --font-mono: 'Menlo', 'Monaco', 'Courier New', monospace;
+            --font-sans: system-ui, -apple-system, sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #000; /* Outer background for screen */
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            min-height: 100vh; /* Allow growth */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: auto; /* Enable page scrolling if needed */
+            padding: 20px; /* Space for scrollbars */
+        }
+
+        /* --- A4 CONTAINER --- */
+        #a4-container {
+            width: 100%;
+            max-width: 1400px; 
+            aspect-ratio: 297/210; 
+            background: var(--bg-main);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            position: relative;
+            flex-shrink: 0; /* Prevent crushing */
+        }
+
+        /* --- HEADER --- */
+        header {
+            height: 15%; /* Increased slightly for contact info */
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            display: grid;
+            grid-template-columns: 300px 250px 1fr; /* Name | Contact | Chart */
+            padding: 0 30px;
+            align-items: center;
+            gap: 20px;
+        }
+        .profile h1 { font-size: 1.8rem; letter-spacing: -0.5px; margin-bottom: 4px; color: #fff; }
+        .profile .role { color: var(--accent); font-family: var(--font-mono); font-size: 0.85rem; }
+        
+        .contact-info {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            border-left: 1px solid var(--border);
+            padding-left: 20px;
+        }
+        .contact-item { display: flex; align-items: center; gap: 8px; }
+        .contact-item i { width: 16px; text-align: center; color: var(--accent); }
+        .contact-item a { color: var(--text-muted); text-decoration: none; transition: color 0.2s; }
+        .contact-item a:hover { color: var(--text-main); }
+
+        /* Bubble Chart Container */
+        #bubble-chart-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 20px;
+            gap: 15px;
+        }
+        
+        #toggle-pdf-btn {
+            background: var(--bg-sidebar);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        #toggle-pdf-btn:hover, #toggle-pdf-btn.active {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* --- LAYOUT GRID --- */
+        #workspace {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 28% 1fr 0px; /* Timeline | Skills | Detail (Hidden by default) */
+            overflow: hidden;
+            transition: grid-template-columns 0.3s ease;
+        }
+        
+        #workspace.pdf-open {
+            grid-template-columns: 28% 1fr 28%;
+        }
+
+        /* --- COLUMN 1: TIMELINE (Compact & Collapsible) --- */
+        #col-timeline {
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+            padding: 0; 
+            scrollbar-width: thin;
+            scrollbar-color: var(--border) var(--bg-sidebar);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Continuous Vertical Line */
+        #col-timeline::before {
+            content: '';
+            position: absolute;
+            top: 0; bottom: 0;
+            left: 25px; /* Centered in the 50px gutter */
+            width: 2px;
+            background: var(--border);
+            z-index: 0;
+        }
+
+        .tl-group {
+            border-bottom: 1px solid var(--border);
+            position: relative;
+            z-index: 1;
+            /* Indent the blocks to leave space for the timeline line */
+            margin-left: 50px; 
+            background: var(--bg-sidebar); 
+        }
+        
+        /* Accordion Header */
+        .tl-header {
+            padding: 15px 15px 15px 15px; /* Reduced left padding as container is indented */
+            cursor: pointer;
+            background: var(--bg-sidebar);
+            transition: background 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+        }
+        .tl-header:hover { background: var(--bg-panel); }
+        
+        /* Timeline Dot */
+        .tl-header::before {
+            content: '';
+            position: absolute;
+            /* Position relative to the header, pushing it left into the gutter */
+            left: -31px; /* 25px (center of gutter) - 50px (margin) - 6px (half width) */
+            top: 50%; transform: translateY(-50%);
+            width: 12px; height: 12px;
+            background: var(--bg-sidebar);
+            border: 2px solid var(--accent);
+            border-radius: 50%;
+            z-index: 2;
+        }
+        .tl-group.expanded .tl-header::before { background: var(--accent); }
+        
+        .tl-time { font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent); display: block; }
+        .tl-title { font-size: 0.95rem; font-weight: 700; color: #fff; margin-top: 2px; }
+        .tl-arrow { font-size: 0.8rem; color: var(--text-muted); transition: transform 0.2s; }
+        .tl-group.expanded .tl-arrow { transform: rotate(180deg); }
+
+        /* Accordion Content */
+        .tl-body {
+            display: none;
+            background: rgba(255,255,255,0.03); /* Slight lighten for contrast against dark sidebar */
+            padding: 10px 15px 20px 15px;
+            border-top: 1px solid var(--border);
+        }
+        .tl-group.expanded .tl-body { display: block; }
+        
+        .tl-desc { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px; padding: 0 5px; }
+
+        /* Compact Project List */
+        .project-list { display: flex; flex-direction: column; gap: 6px; }
+        
+        .project-btn {
+            background: var(--bg-panel); border: 1px solid var(--border); border-radius: 4px; 
+            padding: 8px 10px; cursor: pointer; transition: all 0.2s;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .project-btn:hover { border-color: var(--accent); transform: translateX(2px); }
+        .project-btn.active { border-color: var(--accent); background: rgba(56, 189, 248, 0.1); }
+        
+        .p-name { font-weight: 600; font-size: 0.85rem; color: #e2e8f0; }
+        .p-tags { display: flex; gap: 4px; }
+        .p-tag { 
+            font-family: var(--font-mono); font-size: 0.6rem; color: #94a3b8; 
+            background: rgba(0,0,0,0.3); padding: 1px 4px; border-radius: 2px; 
+        }
+
+        /* --- COLUMN 2: SKILL NETWORK (D3 Container) --- */
+        #col-nested {
+            background-color: var(--bg-main);
+            overflow: hidden; 
+            padding: 0;
+            position: relative;
+        }
+
+        .chart-wrapper {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+        #chart-container {
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+        }
+        #chart-container:active {
+            cursor: grabbing;
+        }
+
+        /* D3 Styles */
+        .link {
+            fill: none;
+            stroke: #4b5563;
+            stroke-opacity: 0.6;
+            stroke-width: 1.5px;
+            transition: stroke 0.5s, stroke-opacity 0.5s, d 0.5s;
+        }
+        .node circle {
+            cursor: pointer;
+            transition: fill 0.5s, stroke 0.5s, r 0.5s;
+        }
+        .node text {
+            cursor: pointer;
+            font-size: 14px;
+            fill: var(--text-main);
+            font-family: var(--font-mono); /* Use theme font */
+            paint-order: stroke;
+            stroke: var(--bg-main); /* Match background for halo */
+            stroke-width: 3px;
+            transition: fill 0.5s, font-weight 0.5s, x 0.5s, text-anchor 0.5s;
+        }
+
+        /* Highlights */
+        .highlight circle {
+            stroke: var(--accent);
+            fill: var(--accent);
+        }
+        .highlight text {
+            fill: #93c5fd;
+            font-weight: 700;
+        }
+        .highlight-link {
+            stroke: var(--accent);
+            stroke-opacity: 1;
+        }
+        .converge-link {
+            stroke: #f59e0b; /* Amber */
+            stroke-opacity: 0;
+            stroke-width: 2px;
+            stroke-dasharray: 6 3;
+            transition: stroke-opacity 0.5s, d 0.5s;
+        }
+        .dimmed {
+            opacity: 0.2;
+            transition: opacity 0.5s;
+        }
+
+        /* Controls */
+        .zoom-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            z-index: 10;
+        }
+        .zoom-controls button {
+            width: auto;
+            min-width: 30px;
+            height: 30px;
+            padding: 0 12px;
+            font-size: 14px;
+            font-weight: bold;
+            background-color: rgba(30, 41, 59, 0.9); /* --bg-panel */
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .zoom-controls button:hover {
+            background-color: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        /* --- COLUMN 3: DETAIL (PDF EMBED) --- */
+        #col-detail {
+            background: var(--bg-sidebar); border-left: 1px solid var(--border);
+            padding: 0; 
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #pdf-container {
+            width: 100%;
+            height: 100%;
+            background: #333;
+        }
+
+        /* --- PRINT STYLES --- */
+        @media print {
+            @page { size: A4 landscape; margin: 0; }
+            body { 
+                background: white; color: black; height: auto; display: block; overflow: visible;
+                -webkit-print-color-adjust: exact;
+            }
+            #a4-container {
+                width: 100%; aspect-ratio: auto; box-shadow: none; height: 100%;
+                background: white; color: black; display: block;
+            }
+            
+            /* Color Overrides */
+            :root {
+                --bg-main: #ffffff;
+                --bg-panel: #f1f5f9;
+                --bg-sidebar: #ffffff;
+                --accent: #0284c7; /* Darker blue for print */
+                --text-main: #000000;
+                --text-muted: #475569;
+                --border: #cbd5e1;
+                --code-bg: #f8fafc;
+                --folder-color: #000000;
+                --file-color: #334155;
+                --tree-hover: #ffffff;
+                --tree-guide: #e2e8f0;
+                --text-bubble-val: #000000;
+                
+                /* D3 Node Colors (Print) */
+                --node-fill-collapsed: #000000;
+                --node-fill-expanded: #ffffff;
+                --node-stroke: #000000;
+            }
+
+            /* Layout Adjustments for Print */
+            header { height: auto; padding: 20px 30px; border-bottom: 2px solid #000; }
+            #workspace { display: grid; grid-template-columns: 25% 45% 30%; height: auto; overflow: visible; }
+            
+            #col-timeline, #col-nested, #col-detail { 
+                overflow: visible; height: auto; border: none; background: white; 
+            }
+            
+            #col-nested { border-left: 1px solid #eee; border-right: 1px solid #eee; }
+
+            /* Tree Print Logic: Expand All or Show Flat */
+            .tree-children { display: flex !important; margin-left: 10px; } /* Force expand */
+            .t-icon { color: #000; }
+            
+            /* Hide Buttons */
+            #reset-btn, .project-btn, .zoom-controls, #toggle-pdf-btn { display: none !important; }
+            .project-btn:hover { transform: none; }
+            .project-btn.active { background: #f0f0f0 !important; border-color: #000; box-shadow: none; }
+            
+            /* Ensure text is black */
+            .profile h1, .profile .role { color: #000 !important; }
+            .p-name, .tl-title, .detail-title, .detail-body p { color: #000 !important; }
+            .tl-content { color: #333 !important; }
+            .code-block { border: 1px solid #ccc; color: #333; }
+
+            /* Force D3 Text to be black for print (Overrides inline D3 styles) */
+            .node text { fill: #000000 !important; font-weight: bold !important; }
+            
+            /* Reset Interactions for Print */
+            .tree-dimmed .tree-row { opacity: 1 !important; }
+            .tree-highlight > .tree-row { color: #000 !important; font-weight: normal; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="a4-container">
+        <header>
+            <div class="profile">
+                <h1>Jay Huang</h1>
+                <div class="role">// High-Performance Motor Control & Embedded Systems</div>
+            </div>
+            
+            <div class="contact-info">
+                <div class="contact-item">
+                    <span>📧</span> <a href="mailto:jay.huang@example.com">jay.huang@email.com</a>
+                </div>
+                <div class="contact-item">
+                    <span>📱</span> <span>+886 912 345 678</span>
+                </div>
+                <div class="contact-item">
+                    <span>📍</span> <span>Taipei, Taiwan</span>
+                </div>
+                <div class="contact-item">
+                    <span>🔗</span> <a href="#">linkedin.com/in/jayhuang</a>
+                </div>
+            </div>
+
+            <div id="bubble-chart-container">
+                <!-- SVG Bubble Chart will be injected here -->
+                <button id="toggle-pdf-btn" onclick="togglePDF()">📄 PDF Viewer</button>
+            </div>
+        </header>
+
+        <div id="workspace">
+            
+            <!-- LEFT: TIMELINE -->
+            <aside id="col-timeline">
+                <!-- Injected via JS -->
+            </aside>
+
+            <!-- CENTER: SKILL NETWORK -->
+            <section id="col-nested">
+                <div class="chart-wrapper">
+                    <div id="chart-container"></div>
+                    <div class="zoom-controls">
+                        <button id="zoom-reset" title="Reset View">⟲ Reset</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- RIGHT: DETAIL -->
+            <aside id="col-detail">
+                <object id="pdf-container" data="resume.pdf" type="application/pdf">
+                    <div style="padding:20px; text-align:center; color:#94a3b8;">
+                        <p>PDF Resume Viewer</p>
+                        <p style="font-size:0.8rem">File 'resume.pdf' not found or browser does not support embedding.</p>
+                        <br>
+                        <a href="#" style="color:var(--accent)">Download PDF</a>
+                    </div>
+                </object>
+            </aside>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. DATA (Extracted from Sankey Data)
+        // ==========================================
+        const fullSkillData = {
+    "name": "Skills Ecosystem",
+    "level": -1,
+    "children": [
+        {
+            "name": "Firmware",
+            "id": "s_firmware",
+            "children": [
+                {
+                    "name": "Code",
+                    "id": "s_code",
+                    "children": [
+                        {
+                            "name": "Quality",
+                            "id": "s_quality",
+                            "children": [
+                                {
+                                    "name": "DynamicAnalysis",
+                                    "id": "s_dynamicanalysis",
+                                    "children": [
+                                        { "name": "Matlab", "id": "s_matlab" }
+                                    ]
+                                },
+                                {
+                                    "name": "StaticAnalysis",
+                                    "id": "s_staticanalysis",
+                                    "children": [
+                                        { "name": "Polyspace", "id": "s_polyspace" }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Language",
+                            "id": "s_language",
+                            "children": [
+                                {
+                                    "name": "Python",
+                                    "id": "s_python",
+                                    "children": [
+                                        { "name": "GUI", "id": "s_gui" }
+                                    ]
+                                },
+                                { "name": "Assembly", "id": "s_assembly" },
+                                { "name": "C", "id": "s_c" }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "MCU",
+                    "id": "s_mcu",
+                    "children": [
+                        { "name": "TI-DSP", "id": "s_ti_dsp" },
+                        { "name": "Renesas", "id": "s_renesas" },
+                        { "name": "Microchip", "id": "s_microchip" },
+                        { "name": "ST", "id": "s_st" },
+                        { "name": "NXP", "id": "s_nxp" }
+                    ]
+                },
+                {
+                    "name": "Function",
+                    "id": "s_function",
+                    "children": [
+                        { "name": "Bootloader", "id": "s_bootloader" },
+                        {
+                            "name": "Communication",
+                            "id": "s_communication",
+                            "children": [
+                                { "name": "SPI", "id": "s_spi" },
+                                { "name": "UART", "id": "s_uart" },
+                                {
+                                    "name": "CAN",
+                                    "id": "s_can",
+                                    "children": [
+                                        { "name": "ISO15762", "id": "s_iso15762" },
+                                        { "name": "ISO14230", "id": "s_iso14230" }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Controller",
+                            "id": "s_controller",
+                            "children": [
+                                { "name": "EngineControl", "id": "s_enginecontrol" },
+                                {
+                                    "name": "DC bus",
+                                    "id": "s_dc_bus",
+                                    "children": [
+                                        {
+                                            "name": "PAM",
+                                            "id": "s_pam",
+                                            "children": []
+                                        },
+                                        { "name": "CV/CC", "id": "s_cv_cc" }
+                                    ]
+                                },
+                                {
+                                    "name": "Grid/AC-Load",
+                                    "id": "s_grid_ac_load",
+                                    "children": [
+                                        { "name": "MPPT", "id": "s_mppt" },
+                                        { "name": "PFC", "id": "s_pfc" },
+                                        { "name": "DroopControl", "id": "s_droopcontrol" }
+                                    ]
+                                },
+                                {
+                                    "name": "MotorControl",
+                                    "id": "s_motorcontrol",
+                                    "children": [
+                                        {
+                                            "name": "Capless",
+                                            "id": "s_capless",
+                                            "children": []
+                                        },
+                                        {
+                                            "name": "Speed control",
+                                            "id": "s_speed_control",
+                                            "children": []
+                                        },
+                                        {
+                                            "name": "Position control",
+                                            "id": "s_position_control",
+                                            "children": []
+                                        },
+                                        {
+                                            "name": "MTPA",
+                                            "id": "s_mtpa",
+                                            "children": []
+                                        },
+                                        {
+                                            "name": "FluxWeakening",
+                                            "id": "s_fluxweakening",
+                                            "children": []
+                                        },
+                                        {
+                                            "name": "\u03b8v control",
+                                            "id": "s__v_control",
+                                            "children": []
+                                        },
+                                        {
+                                            "name": "FOC",
+                                            "id": "s_foc",
+                                            "children": []
+                                        },
+                                        {
+                                            "name": "V/F",
+                                            "id": "s_v_f",
+                                            "children": []
+                                        },
+                                        {
+                                            "name": "I/F",
+                                            "id": "s_i_f",
+                                            "children": []
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "PositionSensor",
+                                    "id": "s_positionsensor",
+                                    "children": [
+                                        {
+                                            "name": "Sensorless",
+                                            "id": "s_sensorless",
+                                            "children": [
+                                                {
+                                                    "name": "BackEMF",
+                                                    "id": "s_backemf",
+                                                    "children": [
+                                                        {
+                                                            "name": "SlidingMode",
+                                                            "id": "s_slidingmode",
+                                                            "children": []
+                                                        },
+                                                        {
+                                                            "name": "Extending-EMF",
+                                                            "id": "s_extending_emf",
+                                                            "children": []
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        { "name": "HallSensor", "id": "s_hallsensor" },
+                                        { "name": "Encoder", "id": "s_encoder" },
+                                        { "name": "Resolver", "id": "s_resolver" }
+                                    ]
+                                },
+                                {
+                                    "name": "Modulation",
+                                    "id": "s_modulation",
+                                    "children": [
+                                        { "name": "SPWM", "id": "s_spwm" },
+                                        { "name": "SVPWM", "id": "s_svpwm" },
+                                        { "name": "DPWM1", "id": "s_dpwm1" },
+                                        { "name": "DPWM_Min", "id": "s_dpwm_min" },
+                                        { "name": "Sixstep/Onepulse", "id": "s_sixstep_onepulse" }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Hardware",
+            "id": "s_hardware",
+            "children": [
+                {
+                    "name": "Motor type",
+                    "id": "s_motor_type",
+                    "children": [
+                        { "name": "PMSM", "id": "s_pmsm" },
+                        { "name": "IM", "id": "s_im" },
+                        { "name": "Two-segment PMSM(Six-phase PMSM)", "id": "s_two_segment_pmsm_six_phase_pmsm_" },
+                        { "name": "PMASynRM", "id": "s_pmasynrm" },
+                        { "name": "SynRM", "id": "s_synrm" }
+                    ]
+                },
+                {
+                    "name": "Component",
+                    "id": "s_component",
+                    "children": [
+                        { "name": "IGBT", "id": "s_igbt" },
+                        { "name": "MOSFET", "id": "s_mosfet" },
+                        { "name": "GaN", "id": "s_gan" },
+                        { "name": "SiC", "id": "s_sic" }
+                    ]
+                },
+                {
+                    "name": "Layout",
+                    "id": "s_layout",
+                    "children": [
+                        { "name": "Peripheral", "id": "s_peripheral" },
+                        { "name": "PowerStage", "id": "s_powerstage" }
+                    ]
+                },
+                {
+                    "name": "Dyno",
+                    "id": "s_dyno",
+                    "children": [
+                        {
+                            "name": "ActiveLoad",
+                            "id": "s_activeload",
+                            "children": [
+                                { "name": "Yaskawa", "id": "s_yaskawa" },
+                                { "name": "YL", "id": "s_yl" },
+                                { "name": "Delta", "id": "s_delta" },
+                                { "name": "Siemens", "id": "s_siemens" }
+                            ]
+                        },
+                        {
+                            "name": "PassiveLoad",
+                            "id": "s_passiveload",
+                            "children": [
+                                { "name": "EM brake", "id": "s_em_brake" }
+                            ]
+                        },
+                        {
+                            "name": "Shafts alignment",
+                            "id": "s_shafts_alignment",
+                            "children": [
+                                { "name": "Dial indicator", "id": "s_dial_indicator" },
+                                { "name": "Laser Alignment Tool", "id": "s_laser_alignment_tool" }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "Measurement",
+                    "id": "s_measurement",
+                    "children": [
+                        {
+                            "name": "Motor Characteristic",
+                            "id": "s_motor_characteristic",
+                            "children": [
+                                { "name": "R, L, Ke, Kt, J...", "id": "s_r__l__ke__kt__j___" }
+                            ]
+                        },
+                        {
+                            "name": "System/Circuit Characteristic",
+                            "id": "s_system_circuit_characteristic",
+                            "children": [
+                                { "name": "Bode, FFT, Spectra analysis", "id": "s_bode__fft__spectra_analysis" }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Digital Twins",
+            "id": "s_digital_twins",
+            "children": [
+                {
+                    "name": "System",
+                    "id": "s_system",
+                    "children": [
+                        { "name": "Ansys-Twins", "id": "s_ansys_twins" },
+                        { "name": "Matlab", "id": "s_matlab" }
+                    ]
+                },
+                {
+                    "name": "Circuit",
+                    "id": "s_circuit",
+                    "children": [
+                        { "name": "Ansys-Q3D", "id": "s_ansys_q3d" },
+                        { "name": "Simetrix", "id": "s_simetrix" },
+                        { "name": "PSPICE", "id": "s_pspice" },
+                        { "name": "PSIM", "id": "s_psim" }
+                    ]
+                }
+            ]
+        }
+    ]
+};
+
+        const projectsDB = {
+    "s_range_extended_e_scooter": {
+        "name": "Range-Extended E-Scooter",
+        "tags": ["3kW"],
+        "activeSkills": [
+            "s_powerstage", "s_matlab", "s_peripheral", "s_ansys_twins", "s_cv_cc", "s_assembly", "s_enginecontrol", "s_pmsm"
+        ],
+        "desc": "Range-Extended E-Scooter System. Integrated Engine Control and Power Stage Layout.",
+        "result": "System validated at 3kW with Ansys Twins simulation.",
+        "code": "if(engine_rpm > 2000) { \n  start_generation_mode();\n}"
+    },
+    "s_two_segment_pmsm": {
+        "name": "Two-segment PMSM",
+        "tags": ["SixPhase"],
+        "activeSkills": [
+            "s_mtpa", "s_fluxweakening", "s_foc", "s_svpwm"
+        ],
+        "desc": "Control strategy for Two-segment Six-Phase PMSM.",
+        "result": "Implemented fault-tolerant control.",
+        "code": "// Six-phase transformation\nvd_1 = 0.66 * (va + vb_shifted + vc_shifted);"
+    },
+    "s_escooter": {
+        "name": "E-Scooter",
+        "tags": ["6kW"],
+        "activeSkills": [
+            "s_matlab", "s_powerstage", "s_peripheral", "s_assembly", "s_pmsm"
+        ],
+        "desc": "Mass production 6kW E-Scooter drive.",
+        "result": "Cost-down solution using lower-end MCU.",
+        "code": "void ISR_HighFreq() { \n  // Assembly optimized\n}"
+    },
+    "s_isg": {
+        "name": "ISG Controller",
+        "tags": ["100A", "4kW", "12krpm"],
+        "activeSkills": [
+            "s_c", "s_bootloader", "s_iso14230", "s_matlab", "s_cv_cc", "s_iso15762", "s_assembly", "s_pmsm"
+        ],
+        "desc": "Integrated Starter Generator for automotive application.",
+        "result": "Passed 100A load test at 12krpm.",
+        "code": "CAN_Transmit(ISO15762_ID, data_payload);"
+    },
+    "s_embedded_system": {
+        "name": "Embedded System",
+        "tags": ["Infrastructure"],
+        "activeSkills": [
+            "s_assembly"
+        ],
+        "desc": "Base infrastructure for embedded projects from scratch.",
+        "result": "Developed linker scripts and IVT.",
+        "code": ".section .vectors\n.long _start"
+    },
+    "s_refrigerator": {
+        "name": "Refrigerator",
+        "tags": ["Compressor"],
+        "activeSkills": [
+            "s_c", "s_pmsm"
+        ],
+        "desc": "Inverter drive for Refrigerator compressor.",
+        "result": "High efficiency at low speed.",
+        "code": "// Low speed observer logic"
+    },
+    "s_pmasynrm": {
+        "name": "PMASynRM",
+        "tags": ["620V", "4.5kW", "PhD"],
+        "activeSkills": [
+            "s_fluxweakening", "s_foc", "s_mtpa", "s_matlab", "s_ansys_twins", "s__v_control"
+        ],
+        "desc": "Non-Rare Earth PM-Assisted Synchronous Reluctance Motor.",
+        "result": "Optimized Theta-V control for torque ripple reduction.",
+        "code": "theta_v = theta_e + delta_angle;"
+    },
+    "s_pv_inverter": {
+        "name": "PV Inverter",
+        "tags": ["Grid"],
+        "activeSkills": [
+            "s_c", "s_pfc", "s_mppt"
+        ],
+        "desc": "Solar PV Inverter with MPPT.",
+        "result": "99.5% MPPT efficiency.",
+        "code": "v_pv_ref = perturb_and_observe(v_pv, i_pv);"
+    },
+    "s_generator": {
+        "name": "Generator",
+        "tags": ["3.2kW", "THDv:0.8%"],
+        "activeSkills": [
+            "s_c", "s_matlab", "s_cv_cc", "s_droopcontrol", "s_pmsm"
+        ],
+        "desc": "Portable Generator with low THD output.",
+        "result": "Achieved THDv < 0.8%.",
+        "code": "// Harmonic compensation\nv_out -= v_harmonic * gain;"
+    },
+    "s_dynamicboost_dcac": {
+        "name": "DynamicBoost+DCAC",
+        "tags": ["12kW"],
+        "activeSkills": [
+            "s_powerstage", "s_pmsm"
+        ],
+        "desc": "High power 12kW converter system.",
+        "result": "High density layout.",
+        "code": "// Power stage definition"
+    }
+};
+
+        const timelineData = [
+            {
+                time: "Academic (PhD)",
+                title: "Research & Thesis",
+                content: "Advanced Motor Control & Multi-physics",
+                projects: ["s_pmasynrm", "s_two_segment_pmsm"]
+            },
+            {
+                time: "Academic (Master)",
+                title: "High Performance Drives",
+                content: "DSP & FPGA based Control",
+                projects: ["s_generator", "s_pv_inverter"]
+            },
+            {
+                time: "Industry Projects",
+                title: "EV & Automotive",
+                content: "Mass Production & System Integration",
+                projects: ["s_isg", "s_range_extended_e_scooter", "s_escooter", "s_dynamicboost_dcac", "s_embedded_system", "s_refrigerator"]
+            }
+        ];
+
+        // ==========================================
+        // 2. TIMELINE RENDERER (Accordion Style)
+        // ==========================================
+        function renderTimeline() {
+            const container = document.getElementById('col-timeline');
+            
+            timelineData.forEach((period, index) => {
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'tl-group';
+                
+                // Auto-expand the first group
+                if(index === 0) groupDiv.classList.add('expanded');
+
+                // Header (Click to toggle)
+                const header = document.createElement('div');
+                header.className = 'tl-header';
+                header.onclick = () => {
+                    // Toggle current
+                    groupDiv.classList.toggle('expanded');
+                    // Optional: Close others? Let's keep multiple open enabled for comparison
+                };
+                
+                header.innerHTML = `
+                    <div>
+                        <span class="tl-time">${period.time}</span>
+                        <div class="tl-title">${period.title}</div>
+                    </div>
+                    <div class="tl-arrow">▼</div>
+                `;
+
+                // Body
+                const body = document.createElement('div');
+                body.className = 'tl-body';
+                
+                let bodyHtml = `<div class="tl-desc">${period.content}</div><div class="project-list">`;
+                
+                if (period.projects) {
+                    period.projects.forEach(pid => {
+                        const pj = projectsDB[pid];
+                        if(!pj) return; // Safety check if data missing
+                        bodyHtml += `
+                            <div class="project-btn" id="btn-${pid}" onclick="selectProject('${pid}')">
+                                <span class="p-name">${pj.name}</span>
+                                <div class="p-tags">${pj.tags.map(t => `<span class="p-tag">${t}</span>`).join('')}</div>
+                            </div>`;
+                    });
+                }
+                bodyHtml += `</div>`;
+                body.innerHTML = bodyHtml;
+
+                groupDiv.appendChild(header);
+                groupDiv.appendChild(body);
+                container.appendChild(groupDiv);
+            });
+        }
+
+        // ==========================================
+        // 3. D3 HORIZONTAL TREE RENDERER & INTERACTION
+        // ==========================================
+        
+        // Global interaction triggers
+        let globalTriggerProjectSelect = null;
+        let globalResetView = null;
+
+        function drawHorizontalTree() {
+            const container = d3.select('#chart-container');
+            container.html(''); // Clear previous
+
+            const width = container.node().clientWidth;
+            const height = container.node().clientHeight;
+            
+            const margin = { top: 20, right: 120, bottom: 20, left: 100 };
+            const innerWidth = width - margin.left - margin.right;
+            const innerHeight = height - margin.top - margin.bottom;
+
+            const svg = container.append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .attr("viewBox", [0, 0, width, height])
+                .style("font-family", "var(--font-mono)");
+            
+            const g = svg.append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+
+            // Root Hierarchy
+            const root = d3.hierarchy(fullSkillData);
+            root.x0 = innerHeight / 2;
+            root.y0 = 0;
+
+            // Sort logic: Keep consistent order
+            root.sort((a, b) => d3.ascending(a.data.name, b.data.name));
+
+            // Tree Layout: Horizontal (x=vertical, y=horizontal in D3 logic)
+            // Use nodeSize instead of size to prevent squeezing text
+            const tree = d3.tree().nodeSize([30, 160]);
+            
+            // Link generator
+            const diagonal = d3.linkHorizontal()
+                .x(d => d.y)
+                .y(d => d.x);
+
+            // Level Styles
+            const levelColors = ["#ffffff", "#38bdf8", "#a78bfa", "#34d399", "#94a3b8"];
+            const levelSizes = [8, 8, 6, 5, 4];
+            // Increased font sizes for readability
+            const levelFontSizes = ["18px", "16px", "14px", "13px", "12px"];
+            // Brighter colors for contrast
+            const levelTextColors = ["#ffffff", "#38bdf8", "#f1f5f9", "#e2e8f0", "#cbd5e1"];
+            
+            // Groups for ordering (Links behind Nodes)
+            const gLink = g.append("g").attr("fill", "none").attr("stroke", "#4b5563").attr("stroke-opacity", 0.4).attr("stroke-width", 1.5);
+            const gNode = g.append("g").attr("cursor", "pointer").attr("pointer-events", "all");
+
+            // Update Function (Collapsible)
+            function update(source) {
+                const duration = 250;
+                const nodes = root.descendants().reverse();
+                const links = root.links();
+
+                // Compute the new tree layout.
+                tree(root);
+
+                // Nodes
+                const node = gNode.selectAll("g.node")
+                    .data(nodes, d => d.id || (d.id = Math.random())); // ensure unique id if data.id missing
+
+                const nodeEnter = node.enter().append("g")
+                    .attr("class", "node")
+                    .attr("transform", d => `translate(${source.y0},${source.x0})`)
+                    .on("click", (event, d) => {
+                        // Toggle children on click
+                        if (d.children) {
+                            d._children = d.children;
+                            d.children = null;
+                        } else {
+                            d.children = d._children;
+                            d._children = null;
+                        }
+                        update(d);
+                    });
+
+                // Add Circle
+                nodeEnter.append("circle")
+                    .attr("r", 0) // animate in
+                    .attr("fill", d => d._children ? "#0284c7" : (levelColors[d.depth] || "#94a3b8"))
+                    .attr("stroke", "var(--node-stroke)")
+                    .attr("stroke-width", 1.5);
+
+                // Add Text
+                nodeEnter.append("text")
+                    .attr("dy", "0.31em")
+                    .attr("x", d => d.children || d._children ? -15 : 15)
+                    .attr("text-anchor", d => d.children || d._children ? "end" : "start")
+                    .text(d => d.depth === 0 ? "" : d.data.name) // Hide root label if desired, or keep
+                    .style("fill-opacity", 0)
+                    .style("font-size", d => levelFontSizes[d.depth] || "12px")
+                    .style("fill", d => levelTextColors[d.depth] || "#cbd5e1")
+                    .style("font-weight", d => d.depth <= 1 ? "bold" : "normal")
+                    .clone(true).lower()
+                    .attr("stroke", "var(--bg-main)")
+                    .attr("stroke-width", 2); // Reduced halo width
+
+                // Transition nodes to their new position.
+                const nodeUpdate = node.merge(nodeEnter).transition().duration(duration)
+                    .attr("transform", d => `translate(${d.y},${d.x})`);
+
+                nodeUpdate.select("circle")
+                    .attr("r", d => levelSizes[d.depth] || 4)
+                    .attr("fill", d => d._children ? "var(--accent)" : (levelColors[d.depth] || "#94a3b8"));
+
+                // Use selectAll to ensure both the text and its clone (halo) are updated
+                nodeUpdate.selectAll("text")
+                    .style("fill-opacity", 1);
+
+                // Transition exiting nodes to the parent's new position.
+                const nodeExit = node.exit().transition().duration(duration)
+                    .attr("transform", d => `translate(${source.y},${source.x})`)
+                    .remove();
+
+                nodeExit.select("circle").attr("r", 0);
+                nodeExit.selectAll("text").style("fill-opacity", 0);
+
+                // Links
+                const link = gLink.selectAll("path.link")
+                    .data(links, d => d.target.id);
+
+                const linkEnter = link.enter().append("path")
+                    .attr("class", "link")
+                    .attr("d", d => {
+                        const o = {x: source.x0, y: source.y0};
+                        return diagonal({source: o, target: o});
+                    });
+
+                link.merge(linkEnter).transition().duration(duration)
+                    .attr("d", diagonal);
+
+                link.exit().transition().duration(duration)
+                    .attr("d", d => {
+                        const o = {x: source.x, y: source.y};
+                        return diagonal({source: o, target: o});
+                    })
+                    .remove();
+
+                // Stash the old positions for transition.
+                nodes.forEach(d => {
+                    d.x0 = d.x;
+                    d.y0 = d.y;
+                });
+            }
+
+            // Initial Update
+            update(root);
+            
+            // Zoom Support
+            const zoom = d3.zoom()
+                .scaleExtent([0.1, 4])
+                .on("zoom", (event) => {
+                    g.attr("transform", event.transform);
+                });
+            
+            // Set initial transform (Centered vertically)
+            // Since we use nodeSize, x=0 is the root. We need to shift it to the middle of the screen height-wise.
+            svg.call(zoom).call(zoom.transform, d3.zoomIdentity.translate(margin.left, innerHeight / 2));
+
+
+            // ==========================================
+            // INTERACTION LOGIC (Scoped to instance)
+            // ==========================================
+            
+            // Reset
+            window.globalResetView = () => {
+                 // Expand all
+                 root.descendants().forEach(d => {
+                     if (d._children) {
+                         d.children = d._children;
+                         d._children = null;
+                     }
+                 });
+                 update(root);
+                 
+                 // Reset Zoom
+                 svg.transition().duration(750)
+                    .call(zoom.transform, d3.zoomIdentity.translate(margin.left, innerHeight / 2));
+                 
+                 // Clear highlights
+                 gNode.selectAll("circle").transition().style("opacity", 1).attr("fill", d => levelColors[d.depth] || "#94a3b8");
+                 gNode.selectAll("text").transition().style("opacity", 1).style("fill", d => levelTextColors[d.depth] || "#94a3b8");
+                 gLink.selectAll("path").transition().style("opacity", 1).attr("stroke", "#4b5563");
+            };
+
+            // Highlight Project
+            window.globalTriggerProjectSelect = (projectName) => {
+                const project = Object.values(projectsDB).find(p => p.name === projectName);
+                if (!project) return;
+
+                // 1. Expand relevant paths first
+                const activeIDs = new Set(project.activeSkills || []);
+                
+                // Find all target nodes in the full hierarchy (even if collapsed)
+                // We need to trace down from root to ensure they are visible
+                let targets = [];
+                root.each(d => {
+                    if (d.data.id && activeIDs.has(d.data.id)) {
+                        targets.push(d);
+                    }
+                });
+                
+                // Expand parents of targets
+                targets.forEach(d => {
+                    let curr = d;
+                    while (curr.parent) {
+                        if (curr.parent._children) {
+                            curr.parent.children = curr.parent._children;
+                            curr.parent._children = null;
+                        }
+                        curr = curr.parent;
+                    }
+                });
+                
+                update(root);
+
+                // 2. Apply Highlighting Styling (after update/transition)
+                setTimeout(() => {
+                    const activeNodes = new Set();
+                    const targetSet = new Set();
+                    
+                    // Re-query targets after expansion (references might persist but safe to re-check)
+                     root.each(d => {
+                        if (d.data.id && activeIDs.has(d.data.id)) {
+                            targetSet.add(d);
+                            let curr = d;
+                            while(curr) {
+                                activeNodes.add(curr);
+                                curr = curr.parent;
+                            }
+                        }
+                    });
+
+                    // Dim others
+                    gNode.selectAll("g.node").transition().duration(500)
+                        .style("opacity", d => activeNodes.has(d) ? 1 : 0.1);
+
+                    gLink.selectAll("path.link").transition().duration(500)
+                        .style("opacity", d => activeNodes.has(d.target) ? 1 : 0.1)
+                        .attr("stroke", d => activeNodes.has(d.target) ? "var(--accent)" : "#4b5563");
+                    
+                    // Highlight active
+                    gNode.selectAll("circle")
+                        .transition().duration(500)
+                        .attr("fill", d => targetSet.has(d) ? "var(--accent)" : (d.children ? (levelColors[d.depth] || "#94a3b8") : (levelColors[d.depth] || "#94a3b8")))
+                        .attr("r", d => targetSet.has(d) ? 10 : (levelSizes[d.depth] || 4));
+                        
+                    gNode.selectAll("text")
+                         .transition().duration(500)
+                         .style("fill", d => activeNodes.has(d) ? "var(--accent)" : (levelTextColors[d.depth] || "#94a3b8"))
+                         .style("font-weight", d => activeNodes.has(d) ? "bold" : (d.depth <=1 ? "bold" : "normal"));
+
+                }, 300); // Wait for tree expansion
+            };
+            
+            d3.select("#zoom-reset").on("click", window.globalResetView);
+        }
+
+        // Bridge function for Timeline
+        function selectProject(pid) {
+            // 1. Highlight Project Button (Timeline)
+            document.querySelectorAll('.project-btn').forEach(b => b.classList.remove('active'));
+            const btn = document.getElementById(`btn-${pid}`);
+            if(btn) btn.classList.add('active');
+
+            // 2. Trigger D3 Animation
+            if(window.globalTriggerProjectSelect && projectsDB[pid]) {
+                window.globalTriggerProjectSelect(projectsDB[pid].name);
+            }
+        }
+
+        // ==========================================
+        // 4. HEADER BUBBLE CHART
+        // ==========================================
+        function drawHeaderBubbles() {
+            const container = d3.select("#bubble-chart-container");
+            const width = 500; 
+            const height = 130; 
+
+            // 1. Process Data: Count leaves per top-level category
+            const root = d3.hierarchy(fullSkillData);
+            const categories = root.children.map(cat => {
+                // Count all descendants for "weight"
+                return {
+                    name: cat.data.name,
+                    value: cat.descendants().length
+                };
+            });
+            
+            const packData = { children: categories };
+            const rootPack = d3.hierarchy(packData).sum(d => d.value);
+
+            // 2. Layout
+            const pack = d3.pack()
+                .size([width, height])
+                .padding(15);
+            
+            pack(rootPack);
+
+            // 3. SVG
+            const svg = container.insert("svg", ":first-child")
+                .attr("width", width)
+                .attr("height", height)
+                .style("margin-right", "auto") // Push to left if we want, or keep centered
+                .style("overflow", "visible");
+
+            const nodes = svg.selectAll("g")
+                .data(rootPack.children)
+                .join("g")
+                .attr("transform", d => `translate(${d.x},${d.y})`);
+
+            // Colors
+            const colorMap = {
+                "Firmware": "#38bdf8",     // Blue
+                "Hardware": "#34d399",     // Green
+                "Digital Twins": "#a78bfa" // Purple
+            };
+
+            // Bubble
+            nodes.append("circle")
+                .attr("r", d => d.r)
+                .attr("fill", d => colorMap[d.data.name] || "#94a3b8")
+                .attr("opacity", 0.15)
+                .attr("stroke", d => colorMap[d.data.name] || "#94a3b8")
+                .attr("stroke-width", 1.5)
+                .style("cursor", "default");
+
+            // Label (Name)
+            nodes.append("text")
+                .attr("text-anchor", "middle")
+                .attr("dy", "-0.3em")
+                .style("font-size", d => d.r < 35 ? "10px" : "12px")
+                .style("fill", "#e2e8f0")
+                .style("font-weight", "600")
+                .style("font-family", "var(--font-mono)")
+                .style("pointer-events", "none")
+                .each(function(d) {
+                    const el = d3.select(this);
+                    const name = d.data.name;
+                    // Split long names if bubble is small
+                    if (name.includes(" ") && d.r < 40) {
+                        const parts = name.split(" ");
+                        el.append("tspan").attr("x", 0).attr("dy", "-0.2em").text(parts[0]);
+                        el.append("tspan").attr("x", 0).attr("dy", "1.1em").text(parts[1]);
+                    } else {
+                        el.text(name);
+                    }
+                });
+                
+            // Label (Count/%)
+            nodes.append("text")
+                .text(d => Math.round((d.data.value / rootPack.value) * 100) + "%")
+                .attr("text-anchor", "middle")
+                .attr("dy", d => d.data.name.includes(" ") && d.r < 40 ? "2.3em" : "1.2em")
+                .style("font-size", d => d.r < 35 ? "10px" : "11px")
+                .style("fill", "var(--accent)")
+                .style("pointer-events", "none");
+        }
+
+        // Init
+        window.onload = () => {
+            renderTimeline();
+            drawHorizontalTree(); 
+            drawHeaderBubbles();
+        };
+
+
+        function togglePDF() {
+            const ws = document.getElementById('workspace');
+            const btn = document.getElementById('toggle-pdf-btn');
+            ws.classList.toggle('pdf-open');
+            btn.classList.toggle('active');
+
+            // Update button text
+            const isPDFOpen = ws.classList.contains('pdf-open');
+            btn.innerHTML = isPDFOpen ? '📄 Hide PDF' : '📄 PDF Viewer';
+            
+            // Resize chart after transition
+            setTimeout(() => {
+                // We need to trigger a redraw or resize event if D3 doesn't auto-handle it.
+                // Re-running drawHorizontalTree() is the safest way to correct centering.
+                drawHorizontalTree();
+            }, 350);
+        }
+
+    </script>
+</body>
+</html>
