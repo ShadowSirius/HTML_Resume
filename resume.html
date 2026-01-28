@@ -124,26 +124,6 @@
             position: relative; /* For overlay */
         }
 
-        /* OVERLAY SVG for Convergence Lines */
-        #overlay-svg {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            pointer-events: none; /* Let clicks pass through */
-            z-index: 50;
-        }
-        .connection-line {
-            fill: none;
-            stroke: #f59e0b; /* Amber */
-            stroke-width: 2px;
-            stroke-dasharray: 8 4;
-            opacity: 0.6;
-            animation: dash 1s linear infinite;
-        }
-        @keyframes dash {
-            to { stroke-dashoffset: -12; }
-        }
-        
         #workspace.pdf-open {
             grid-template-columns: 28% 1fr 28%;
         }
@@ -474,8 +454,6 @@
                 </div>
             </section>
             
-            <!-- OVERLAY LAYER -->
-            <svg id="overlay-svg"></svg>
 
             <!-- RIGHT: DETAIL -->
             <aside id="col-detail">
@@ -1039,9 +1017,6 @@
             rootR.sort((a, b) => d3.ascending(a.data.name, b.data.name));
             
             // Left: Custom Sort (Hardware above Digital Twins)
-            // d3.tree puts lower index at top (negative x) or bottom (positive x)?
-            // Usually index 0 is at top (lowest x value).
-            // We want Hardware at top.
             rootL.sort((a, b) => {
                  if(a.depth === 1 && b.depth === 1) {
                      if(a.data.name === "Hardware") return -1;
@@ -1049,6 +1024,53 @@
                  }
                  return d3.ascending(a.data.name, b.data.name);
             });
+
+            // Layout Mode State
+            let currentLayoutMode = 'split';
+
+            function switchLayoutMode(mode) {
+                if(mode === currentLayoutMode) return;
+                currentLayoutMode = mode;
+
+                if (mode === 'unified') {
+                    // Unified: Move Left Nodes to Right Root
+                    if (rootL.children) {
+                        if (!rootR.children) rootR.children = [];
+                        rootR.children.push(...rootL.children);
+                        rootL.children = null;
+                    }
+                    // Sort Combined Tree (Firmware, Hardware, Digital Twins)
+                    rootR.sort((a, b) => {
+                         // Custom order if needed, or just alphabetical
+                         // Let's put Hardware top, then Firmware, then Digital Twins?
+                         // Or keep Firmware, Hardware, Digital Twins.
+                         return d3.ascending(a.data.name, b.data.name);
+                    });
+
+                } else {
+                    // Split: Restore original owners based on name
+                    if (rootR.children) {
+                         const allChildren = rootR.children;
+                         const r = [];
+                         const l = [];
+                         allChildren.forEach(child => {
+                             if (child.data.name === "Firmware") r.push(child);
+                             else l.push(child);
+                         });
+                         rootR.children = r;
+                         rootL.children = l;
+                    }
+                    // Re-sort Left
+                     rootL.sort((a, b) => {
+                         if(a.depth === 1 && b.depth === 1) {
+                             if(a.data.name === "Hardware") return -1;
+                             if(b.data.name === "Hardware") return 1;
+                         }
+                         return d3.ascending(a.data.name, b.data.name);
+                    });
+                }
+                update(rootR);
+            }
 
             // Tree Layout
             const tree = d3.tree().nodeSize([22, 160]);
@@ -1076,14 +1098,62 @@
                 tree(rootR);
                 tree(rootL);
 
-                // 2. Post-Process Left Tree (Flip Y)
-                // Also mark them as "left-side" for text anchoring
-                rootL.each(d => {
-                    d.y = -d.y;
-                    d.isLeft = true;
-                });
+                // 2. Adjustments based on Mode
+                if (currentLayoutMode === 'split') {
+                    // Post-Process Left Tree (Flip Y)
+                    rootL.each(d => {
+                        d.y = -d.y;
+                        d.isLeft = true;
+                    });
+
+                    // GATHER CLOSER: Reduce horizontal spacing for Level 1
+                    // Only for direct children of root (depth 1)
+                    [rootL, rootR].forEach(r => {
+                         if (r.children) {
+                             r.children.forEach(child => {
+                                 // Pull them closer to center (0).
+                                 // Current y is calculated by tree (depth * default spacing).
+                                 // We override it manually.
+                                 // Note: child descendants are relative to child in d3.tree?
+                                 // No, d3.tree computes absolute x,y from root.
+                                 // If we move child, we must shift all its descendants by the same amount.
+
+                                 const shift = child.y * 0.7; // Reduce distance by 70% (keep 30%)
+                                 const deltaY = (child.y > 0 ? -shift : shift);
+
+                                 child.each(d => {
+                                     d.y += deltaY;
+                                 });
+                             });
+                         }
+                    });
+
+                    // ALIGN TOPS:
+                    // Shift Right Tree vertically so its highest point matches Left Tree's highest point.
+                    let minXL = Infinity;
+                    rootL.each(d => { if(d.x < minXL) minXL = d.x; });
+
+                    let minXR = Infinity;
+                    rootR.each(d => { if(d.x < minXR) minXR = d.x; });
+
+                    // Only apply if both have valid content (avoid shifting if empty)
+                    // Note: root nodes are at x=0. So mins are at least 0.
+                    // Actually x can be negative in d3.tree (it centers parent).
+                    if (minXL !== Infinity && minXR !== Infinity) {
+                        const offset = minXL - minXR;
+                        rootR.each(d => { d.x += offset; });
+                    }
+
+                } else {
+                    // Unified Mode
+                    // Everything is in rootR. No flipping needed.
+                    rootR.each(d => {
+                         d.isLeft = false;
+                    });
+                }
+
                 rootR.each(d => {
-                    d.isLeft = false;
+                    if (currentLayoutMode === 'split') d.isLeft = false;
                 });
 
                 // 3. Merge Nodes & Links
@@ -1140,7 +1210,7 @@
                     .attr("transform", d => `translate(${d.y},${d.x})`);
 
                 nodeUpdate.select("circle")
-                    .attr("r", d => levelSizes[d.depth] || 4)
+                    .attr("r", d => d.depth === 0 ? 0 : (levelSizes[d.depth] || 4))
                     .attr("fill", d => d._children ? "var(--accent)" : (levelColors[d.depth] || "#94a3b8"));
 
                 // Dynamic Text Anchor based on side
@@ -1205,7 +1275,6 @@
                     currentTransform = event.transform;
                     g.attr("transform", event.transform);
                     // Clear overlay lines on zoom to avoid mismatch
-                    d3.select("#overlay-svg").selectAll("*").remove();
                 });
             
             // Center Initial View (width/2, height/2)
@@ -1216,49 +1285,10 @@
             // INTERACTION LOGIC (Scoped to instance)
             // ==========================================
             
-            // Helper: Draw Convergence Lines
-            function drawConvergenceLines(btnID, targetNodes) {
-                const overlay = d3.select("#overlay-svg");
-                overlay.selectAll("*").remove(); // clear old
-
-                const btn = document.getElementById(btnID);
-                if (!btn) return;
-                
-                // Get Button Coords
-                const btnRect = btn.getBoundingClientRect();
-                const containerRect = document.getElementById("workspace").getBoundingClientRect();
-                
-                // Start Point (Right center of button, relative to workspace)
-                const startX = btnRect.right - containerRect.left;
-                const startY = btnRect.top + btnRect.height/2 - containerRect.top;
-
-                // Draw lines to each target
-                targetNodes.forEach(d => {
-                    // Calculate Node Screen Position based on Zoom/Pan
-                    // transform(d.y, d.x) -> Note d.x is vertical in D3 tree logic, but here d.y is x-coord, d.x is y-coord
-                    const [tx, ty] = currentTransform.apply([d.y, d.x]);
-                    
-                    // We need to account for the chart container offset if any
-                    // The #chart-container is inside #workspace col 2.
-                    const chartRect = document.getElementById("chart-container").getBoundingClientRect();
-                    const offsetX = chartRect.left - containerRect.left;
-                    const offsetY = chartRect.top - containerRect.top;
-                    
-                    const endX = offsetX + tx;
-                    const endY = offsetY + ty;
-                    
-                    // Bezier Curve
-                    // M startX, startY C (startX+endX)/2, startY (startX+endX)/2, endY endX, endY
-                    const midX = (startX + endX) / 2;
-                    
-                    overlay.append("path")
-                        .attr("class", "connection-line")
-                        .attr("d", `M ${startX},${startY} C ${midX},${startY} ${midX},${endY} ${endX},${endY}`);
-                });
-            }
-
             // Reset
             window.globalResetView = () => {
+                 switchLayoutMode('split');
+
                  // Expand all
                  [rootL, rootR].forEach(r => {
                      r.descendants().forEach(d => {
@@ -1278,9 +1308,6 @@
                  gNode.selectAll("circle").transition().style("opacity", 1).attr("fill", d => levelColors[d.depth] || "#94a3b8");
                  gNode.selectAll("text").transition().style("opacity", 1).style("fill", d => levelTextColors[d.depth] || "#94a3b8");
                  gLink.selectAll("path").transition().style("opacity", 1).attr("stroke", "#4b5563");
-                 
-                 // Clear overlay
-                 d3.select("#overlay-svg").selectAll("*").remove();
             };
 
             // Highlight Project
@@ -1288,11 +1315,13 @@
                 const project = Object.values(projectsDB).find(p => p.name === projectName);
                 if (!project) return;
 
+                switchLayoutMode('unified');
+
                 // 1. Expand relevant paths first
                 const activeIDs = new Set(project.activeSkills || []);
                 let targets = [];
                 
-                // Helper to check both trees
+                // Helper to check both trees (Note: In unified mode, all are in rootR, but referencing rootL is harmless if empty)
                 [rootL, rootR].forEach(r => {
                     r.each(d => {
                         if (d.data.id && activeIDs.has(d.data.id)) {
@@ -1344,24 +1373,12 @@
                     gNode.selectAll("circle")
                         .transition().duration(500)
                         .attr("fill", d => targetSet.has(d) ? "var(--accent)" : (d.children ? (levelColors[d.depth] || "#94a3b8") : (levelColors[d.depth] || "#94a3b8")))
-                        .attr("r", d => targetSet.has(d) ? 10 : (levelSizes[d.depth] || 4));
+                        .attr("r", d => d.depth === 0 ? 0 : (targetSet.has(d) ? 10 : (levelSizes[d.depth] || 4)));
                         
                     gNode.selectAll("text")
                          .transition().duration(500)
                          .style("fill", d => activeNodes.has(d) ? "var(--accent)" : (levelTextColors[d.depth] || "#94a3b8"))
                          .style("font-weight", d => activeNodes.has(d) ? "bold" : (d.depth <=1 ? "bold" : "normal"));
-
-                    // Draw Overlay Lines (Pass the button ID)
-                    if (btnID) {
-                        // Re-find the specific nodes in the updated layout
-                         const finalTargets = [];
-                         [rootL, rootR].forEach(r => {
-                             r.each(d => {
-                                if (d.data.id && activeIDs.has(d.data.id)) finalTargets.push(d);
-                             });
-                         });
-                        drawConvergenceLines(btnID, finalTargets);
-                    }
 
                 }, 300); // Wait for tree expansion
             };
