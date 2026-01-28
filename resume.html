@@ -1118,7 +1118,17 @@
                                  // No, d3.tree computes absolute x,y from root.
                                  // If we move child, we must shift all its descendants by the same amount.
 
-                                 const shift = child.y * 0.7; // Reduce distance by 70% (keep 30%)
+                                 // Separate Logic:
+                                 // We want to keep them somewhat close but ensure space for the tree icon (at 0,0).
+                                 // The tree icon is roughly 40px wide.
+                                 // Previously we reduced distance by 70%. Let's check if that's too close.
+                                 // Default nodeSize[1] is 160. So child.y is +/- 160.
+                                 // 160 * 0.3 = 48.
+                                 // 48px from center is enough for a 40px icon.
+                                 // However, "separated three points" implies distinct branches.
+                                 // Let's use a slightly less aggressive shift to ensure branches are visible.
+
+                                 const shift = child.y * 0.6; // Reduce by 60% (keep 40% -> ~64px)
                                  const deltaY = (child.y > 0 ? -shift : shift);
 
                                  child.each(d => {
@@ -1186,15 +1196,25 @@
                         update(d);
                     });
 
-                // Add Circle
-                nodeEnter.append("circle")
+                // Add Circle (for non-root) or Icon (for root)
+                const circles = nodeEnter.filter(d => d.depth > 0).append("circle")
                     .attr("r", 0) 
                     .attr("fill", d => d._children ? "#0284c7" : (levelColors[d.depth] || "#94a3b8"))
                     .attr("stroke", "var(--node-stroke)")
                     .attr("stroke-width", 1.5);
 
+                // Root Icon (Tree)
+                const rootIcon = nodeEnter.filter(d => d.depth === 0).append("text")
+                    .attr("class", "root-icon")
+                    .attr("dy", "0.35em")
+                    .attr("text-anchor", "middle")
+                    .text("🌳") // Tree Emoji
+                    .style("font-size", "0px") // Animate in
+                    .style("cursor", "default");
+
                 // Add Text (Initial)
                 nodeEnter.append("text")
+                    .attr("class", "label-text") // Distinguish from root icon
                     .attr("dy", "0.31em")
                     .text(d => d.depth === 0 ? "" : d.data.name) 
                     .style("fill-opacity", 0)
@@ -1210,11 +1230,14 @@
                     .attr("transform", d => `translate(${d.y},${d.x})`);
 
                 nodeUpdate.select("circle")
-                    .attr("r", d => d.depth === 0 ? 0 : (levelSizes[d.depth] || 4))
+                    .attr("r", d => levelSizes[d.depth] || 4)
                     .attr("fill", d => d._children ? "var(--accent)" : (levelColors[d.depth] || "#94a3b8"));
 
+                nodeUpdate.select(".root-icon")
+                    .style("font-size", "40px");
+
                 // Dynamic Text Anchor based on side
-                nodeUpdate.selectAll("text")
+                nodeUpdate.selectAll(".label-text")
                     .attr("x", d => {
                         if (d.depth === 0) return 0;
                         return d.y < 0 ? -15 : 15;
@@ -1231,7 +1254,8 @@
                     .remove();
 
                 nodeExit.select("circle").attr("r", 0);
-                nodeExit.selectAll("text").style("fill-opacity", 0);
+                nodeExit.select(".root-icon").style("font-size", "0px");
+                nodeExit.selectAll(".label-text").style("fill-opacity", 0);
 
                 // Links
                 const link = gLink.selectAll("path.link")
@@ -1245,8 +1269,12 @@
                     });
 
                 // Update links - diagonal automatically uses the flipped d.y
-                link.merge(linkEnter).transition().duration(duration)
-                    .attr("d", diagonal);
+                link.merge(linkEnter)
+                    .transition().duration(duration)
+                    .attr("d", diagonal)
+                    .attr("stroke-width", d => d.source.depth === 0 ? 3 : 1.5) // Thicker branches from root
+                    .attr("stroke", d => d.source.depth === 0 ? "var(--accent)" : "#4b5563") // Colored branches from root
+                    .attr("stroke-opacity", d => d.source.depth === 0 ? 0.6 : 0.4);
 
                 link.exit().transition().duration(duration)
                     .attr("d", d => {
@@ -1305,8 +1333,9 @@
                     .call(zoom.transform, d3.zoomIdentity.translate(width/2, height/2));
                  
                  // Clear highlights
+                 gNode.selectAll("g.node").transition().style("opacity", 1); // Reset group opacity
                  gNode.selectAll("circle").transition().style("opacity", 1).attr("fill", d => levelColors[d.depth] || "#94a3b8");
-                 gNode.selectAll("text").transition().style("opacity", 1).style("fill", d => levelTextColors[d.depth] || "#94a3b8");
+                 gNode.selectAll(".label-text").transition().style("opacity", 1).style("fill", d => levelTextColors[d.depth] || "#94a3b8");
                  gLink.selectAll("path").transition().style("opacity", 1).attr("stroke", "#4b5563");
             };
 
@@ -1373,9 +1402,9 @@
                     gNode.selectAll("circle")
                         .transition().duration(500)
                         .attr("fill", d => targetSet.has(d) ? "var(--accent)" : (d.children ? (levelColors[d.depth] || "#94a3b8") : (levelColors[d.depth] || "#94a3b8")))
-                        .attr("r", d => d.depth === 0 ? 0 : (targetSet.has(d) ? 10 : (levelSizes[d.depth] || 4)));
+                        .attr("r", d => targetSet.has(d) ? 10 : (levelSizes[d.depth] || 4));
                         
-                    gNode.selectAll("text")
+                    gNode.selectAll(".label-text")
                          .transition().duration(500)
                          .style("fill", d => activeNodes.has(d) ? "var(--accent)" : (levelTextColors[d.depth] || "#94a3b8"))
                          .style("font-weight", d => activeNodes.has(d) ? "bold" : (d.depth <=1 ? "bold" : "normal"));
