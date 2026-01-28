@@ -984,12 +984,36 @@
             const container = d3.select('#chart-container');
             container.html(''); // Clear previous
 
+            // Export Button for Manual Layout
+            const exportBtn = document.createElement('button');
+            exportBtn.innerText = "💾 Export Layout";
+            exportBtn.style.position = 'absolute';
+            exportBtn.style.bottom = '20px';
+            exportBtn.style.right = '20px';
+            exportBtn.style.zIndex = '100';
+            exportBtn.onclick = () => {
+                const offsets = {};
+                // Helper to collect offsets from both trees
+                const collect = (root) => {
+                    if (root.children) {
+                        root.children.forEach(c => {
+                            if (c.data.layout) offsets[c.data.name] = c.data.layout;
+                        });
+                    }
+                };
+                collect(rootR);
+                collect(rootL);
+
+                const json = JSON.stringify(offsets, null, 2);
+                console.log(json);
+                alert("Layout offsets exported to console.\n" + json);
+            };
+            container.node().appendChild(exportBtn);
+
             const width = container.node().clientWidth;
             const height = container.node().clientHeight;
             
             const margin = { top: 20, right: 120, bottom: 20, left: 100 };
-            // Note: innerWidth/Height not strictly used for bidirectional nodeSize layout
-            const innerHeight = height - margin.top - margin.bottom;
 
             const svg = container.append("svg")
                 .attr("width", width)
@@ -998,19 +1022,32 @@
                 .style("font-family", "var(--font-mono)");
             
             const g = svg.append("g");
-                // transform set by zoom
 
-            // Split Data into Left and Right Sets for Independent Layouts
+            // Background Tree (Centered)
+            const gBg = g.append("g").attr("class", "bg-layer").attr("pointer-events", "none");
+
+            // Simple bare tree path
+            const treePath = "M0,80 L0,20 C0,20 -15,0 -35,-20 M0,20 C0,20 15,0 35,-20 M0,50 C0,50 -25,30 -45,10 M0,50 C0,50 25,30 45,10";
+            gBg.append("path")
+                .attr("d", treePath)
+                .attr("stroke", "#334155")
+                .attr("stroke-width", 3)
+                .attr("fill", "none")
+                .attr("stroke-linecap", "round")
+                .attr("transform", "translate(0, -10) scale(1.2)");
+
+
+            // Split Data into Left and Right Sets
             const rightChildren = fullSkillData.children.filter(c => c.name === "Firmware");
             const leftChildren = fullSkillData.children.filter(c => c.name !== "Firmware");
 
             // Root Hierarchy - Right (Firmware)
-            const rootR = d3.hierarchy({ ...fullSkillData, children: rightChildren });
-            rootR.x0 = 0; rootR.y0 = 0; // Relative to center
+            let rootR = d3.hierarchy({ ...fullSkillData, children: rightChildren });
+            rootR.x0 = 0; rootR.y0 = 0;
             
             // Root Hierarchy - Left (Hardware, Digital Twins)
-            const rootL = d3.hierarchy({ ...fullSkillData, children: leftChildren });
-            rootL.x0 = 0; rootL.y0 = 0; // Relative to center
+            let rootL = d3.hierarchy({ ...fullSkillData, children: leftChildren });
+            rootL.x0 = 0; rootL.y0 = 0;
 
             // Sort logic
             // Right: Standard Sort
@@ -1029,47 +1066,38 @@
             let currentLayoutMode = 'split';
 
             function switchLayoutMode(mode) {
-                if(mode === currentLayoutMode) return;
                 currentLayoutMode = mode;
 
-                if (mode === 'unified') {
-                    // Unified: Move Left Nodes to Right Root
-                    if (rootL.children) {
-                        if (!rootR.children) rootR.children = [];
-                        rootR.children.push(...rootL.children);
-                        rootL.children = null;
-                    }
-                    // Sort Combined Tree (Firmware, Hardware, Digital Twins)
-                    rootR.sort((a, b) => {
-                         // Custom order if needed, or just alphabetical
-                         // Let's put Hardware top, then Firmware, then Digital Twins?
-                         // Or keep Firmware, Hardware, Digital Twins.
-                         return d3.ascending(a.data.name, b.data.name);
-                    });
+                // Toggle Background Tree
+                d3.select(".bg-layer").transition().duration(500).style("opacity", mode === 'split' ? 1 : 0);
 
-                } else {
-                    // Split: Restore original owners based on name
-                    if (rootR.children) {
-                         const allChildren = rootR.children;
-                         const r = [];
-                         const l = [];
-                         allChildren.forEach(child => {
-                             if (child.data.name === "Firmware") r.push(child);
-                             else l.push(child);
-                         });
-                         rootR.children = r;
-                         rootL.children = l;
-                    }
-                    // Re-sort Left
-                     rootL.sort((a, b) => {
+                if (mode === 'split') {
+                    // Restore original full data structure from source
+                    const rightChildren = fullSkillData.children.filter(c => c.name === "Firmware");
+                    const leftChildren = fullSkillData.children.filter(c => c.name !== "Firmware");
+
+                    // Re-create hierarchies to reset state
+                    // Note: d.data.layout offsets persist because they are on the data objects
+                    rootR = d3.hierarchy({ ...fullSkillData, children: rightChildren });
+                    rootL = d3.hierarchy({ ...fullSkillData, children: leftChildren });
+
+                    rootR.x0 = 0; rootR.y0 = 0;
+                    rootL.x0 = 0; rootL.y0 = 0;
+
+                    // Sort Right
+                    rootR.sort((a, b) => d3.ascending(a.data.name, b.data.name));
+                    // Sort Left
+                    rootL.sort((a, b) => {
                          if(a.depth === 1 && b.depth === 1) {
                              if(a.data.name === "Hardware") return -1;
                              if(b.data.name === "Hardware") return 1;
                          }
                          return d3.ascending(a.data.name, b.data.name);
                     });
+
+                    update(rootR);
                 }
-                update(rootR);
+                // 'project' mode is handled by trigger function
             }
 
             // Tree Layout
@@ -1138,22 +1166,28 @@
                          }
                     });
 
-                    // ALIGN TOPS:
-                    // Shift Right Tree vertically so its highest point matches Left Tree's highest point.
-                    let minXL = Infinity;
-                    rootL.each(d => { if(d.x < minXL) minXL = d.x; });
+                    // ALIGN TOPS: Removed manual alignment in favor of manual drag (d.data.layout)
+                    // However, we still apply the Manual Offsets here if they exist.
+                }
 
-                    let minXR = Infinity;
-                    rootR.each(d => { if(d.x < minXR) minXR = d.x; });
-
-                    // Only apply if both have valid content (avoid shifting if empty)
-                    // Note: root nodes are at x=0. So mins are at least 0.
-                    // Actually x can be negative in d3.tree (it centers parent).
-                    if (minXL !== Infinity && minXR !== Infinity) {
-                        const offset = minXL - minXR;
-                        rootR.each(d => { d.x += offset; });
-                    }
-
+                // Apply Manual Layout Offsets (Drag Persistence)
+                if (currentLayoutMode === 'split') {
+                    [rootR, rootL].forEach(root => {
+                        if(root.children) {
+                            root.children.forEach(child => {
+                                if (child.data.layout) {
+                                    // Apply offset to child and all descendants
+                                    const { dx, dy } = child.data.layout;
+                                    // dx maps to screen X (d.y), dy maps to screen Y (d.x)
+                                    // because transform is translate(y, x)
+                                    child.descendants().forEach(d => {
+                                        d.y += dx;
+                                        d.x += dy;
+                                    });
+                                }
+                            });
+                        }
+                    });
                 } else {
                     // Unified Mode
                     // Everything is in rootR. No flipping needed.
@@ -1167,24 +1201,54 @@
                 });
 
                 // 3. Merge Nodes & Links
-                // We exclude rootL's root node from the visual array to avoid duplicate center circle
-                // But we keep its links
-                const nodesR = rootR.descendants();
-                const nodesL = rootL.descendants().filter(d => d.depth > 0); 
-                const nodes = [...nodesR, ...nodesL].reverse();
-                
-                const linksR = rootR.links();
-                const linksL = rootL.links();
-                const links = [...linksR, ...linksL];
+                // In Project Mode, we only use rootR (which contains the unified tree).
+                // In Split Mode, we use both.
+                let nodes = [];
+                let links = [];
+
+                if (currentLayoutMode === 'project') {
+                     nodes = rootR.descendants();
+                     links = rootR.links();
+                } else {
+                     const nodesR = rootR.descendants();
+                     // Exclude rootL's root to avoid duplicates
+                     const nodesL = rootL.descendants().filter(d => d.depth > 0);
+                     nodes = [...nodesR, ...nodesL].reverse();
+
+                     const linksR = rootR.links();
+                     const linksL = rootL.links();
+                     links = [...linksR, ...linksL];
+                }
 
                 // Nodes
                 const node = gNode.selectAll("g.node")
-                    .data(nodes, d => d.id || (d.id = Math.random())); 
+                    .data(nodes, d => d.data.id || d.data.name);
+
+                // Drag Behavior
+                const drag = d3.drag()
+                    .on("start", function(event, d) {
+                        d3.select(this).attr("cursor", "grabbing");
+                    })
+                    .on("drag", (event, d) => {
+                        if (currentLayoutMode !== 'split' || d.depth !== 1) return;
+                        if (!d.data.layout) d.data.layout = { dx: 0, dy: 0 };
+                        d.data.layout.dx += event.dx;
+                        d.data.layout.dy += event.dy;
+                        update(rootR); // Trigger re-render to propagate offsets
+                    })
+                    .on("end", function(event, d) {
+                        d3.select(this).attr("cursor", "pointer");
+                    });
 
                 const nodeEnter = node.enter().append("g")
                     .attr("class", "node")
+                    .attr("id", d => "node-" + (d.data.id || d.data.name.replace(/\s+/g, '_')))
                     .attr("transform", d => `translate(${source.y0},${source.x0})`)
                     .on("click", (event, d) => {
+                        if (d.depth === 1 && currentLayoutMode === 'split') return; // Click handled by drag usually? No, we want both.
+                        // Actually, if we drag, we don't want to click.
+                        // d3.drag suppresses click if moved.
+
                         // Toggle children on click
                         if (d.children) {
                             d._children = d.children;
@@ -1196,25 +1260,31 @@
                         update(d);
                     });
 
-                // Add Circle (for non-root) or Icon (for root)
+                // Apply Drag to Level 1 Nodes
+                nodeEnter.filter(d => d.depth === 1 && currentLayoutMode === 'split')
+                    .call(drag);
+
+                // Re-apply drag on update for existing nodes if mode changed?
+                // We'll handle that via selection update if needed, but Enter is usually enough if nodes are persistent.
+                node.filter(d => d.depth === 1).call(drag);
+
+
+                // Add Circle (for non-root)
+                // We Hide root circle completely
                 const circles = nodeEnter.filter(d => d.depth > 0).append("circle")
                     .attr("r", 0) 
                     .attr("fill", d => d._children ? "#0284c7" : (levelColors[d.depth] || "#94a3b8"))
                     .attr("stroke", "var(--node-stroke)")
                     .attr("stroke-width", 1.5);
 
-                // Root Icon (Tree)
-                const rootIcon = nodeEnter.filter(d => d.depth === 0).append("text")
-                    .attr("class", "root-icon")
-                    .attr("dy", "0.35em")
-                    .attr("text-anchor", "middle")
-                    .text("🌳") // Tree Emoji
-                    .style("font-size", "0px") // Animate in
-                    .style("cursor", "default");
+                // Root Icon (REMOVED - Background SVG used instead)
+                // We make the root group invisible/pointer-events none
+                nodeEnter.filter(d => d.depth === 0)
+                    .attr("pointer-events", "none");
 
                 // Add Text (Initial)
                 nodeEnter.append("text")
-                    .attr("class", "label-text") // Distinguish from root icon
+                    .attr("class", "label-text")
                     .attr("dy", "0.31em")
                     .text(d => d.depth === 0 ? "" : d.data.name) 
                     .style("fill-opacity", 0)
@@ -1231,20 +1301,33 @@
 
                 nodeUpdate.select("circle")
                     .attr("r", d => levelSizes[d.depth] || 4)
-                    .attr("fill", d => d._children ? "var(--accent)" : (levelColors[d.depth] || "#94a3b8"));
-
-                nodeUpdate.select(".root-icon")
-                    .style("font-size", "40px");
+                    .attr("fill", d => {
+                        if (currentLayoutMode === 'project') return "var(--accent)";
+                        return d._children ? "var(--accent)" : (levelColors[d.depth] || "#94a3b8");
+                    });
 
                 // Dynamic Text Anchor based on side
                 nodeUpdate.selectAll(".label-text")
+                    .text(d => d.depth === 0 ? (currentLayoutMode === 'project' ? d.data.name : "") : d.data.name)
                     .attr("x", d => {
                         if (d.depth === 0) return 0;
                         return d.y < 0 ? -15 : 15;
                     })
+                    .attr("dy", d => {
+                         if (d.depth === 0 && currentLayoutMode === 'project') return "0.31em";
+                         return "0.31em";
+                    })
                     .attr("text-anchor", d => {
                         if (d.depth === 0) return "middle";
                         return d.y < 0 ? "end" : "start";
+                    })
+                    .style("font-size", d => {
+                        if (d.depth === 0 && currentLayoutMode === 'project') return "20px"; // Larger Title for Project
+                        return levelFontSizes[d.depth] || "12px";
+                    })
+                    .style("fill", d => {
+                         if (d.depth === 0 && currentLayoutMode === 'project') return "#fff";
+                         return levelTextColors[d.depth] || "#cbd5e1";
                     })
                     .style("fill-opacity", 1);
 
@@ -1259,7 +1342,7 @@
 
                 // Links
                 const link = gLink.selectAll("path.link")
-                    .data(links, d => d.target.id);
+                    .data(links, d => d.target.data.id || d.target.data.name);
 
                 const linkEnter = link.enter().append("path")
                     .attr("class", "link")
@@ -1272,9 +1355,20 @@
                 link.merge(linkEnter)
                     .transition().duration(duration)
                     .attr("d", diagonal)
-                    .attr("stroke-width", d => d.source.depth === 0 ? 3 : 1.5) // Thicker branches from root
-                    .attr("stroke", d => d.source.depth === 0 ? "var(--accent)" : "#4b5563") // Colored branches from root
-                    .attr("stroke-opacity", d => d.source.depth === 0 ? 0.6 : 0.4);
+                    .attr("stroke-width", d => d.source.depth === 0 ? 3 : 1.5)
+                    .attr("stroke", d => {
+                        if (currentLayoutMode === 'project') return "var(--accent)";
+                        return d.source.depth === 0 ? "var(--accent)" : "#4b5563";
+                    })
+                    .attr("stroke-opacity", d => {
+                        // Hide root connections in Split Mode
+                        if (currentLayoutMode === 'split' && d.source.depth === 0) return 0;
+                        return d.source.depth === 0 ? 0.6 : 0.4;
+                    });
+
+                // Force visibility update (outside transition for robust hiding)
+                link.merge(linkEnter)
+                    .attr("display", d => (currentLayoutMode === 'split' && d.source.depth === 0) ? "none" : "block");
 
                 link.exit().transition().duration(duration)
                     .attr("d", d => {
@@ -1316,100 +1410,81 @@
             // Reset
             window.globalResetView = () => {
                  switchLayoutMode('split');
-
-                 // Expand all
-                 [rootL, rootR].forEach(r => {
-                     r.descendants().forEach(d => {
-                         if (d._children) {
-                             d.children = d._children;
-                             d._children = null;
-                         }
-                     });
-                 });
-                 update(rootR); // Source doesn't matter much for reset
                  
                  // Reset Zoom
                  svg.transition().duration(750)
                     .call(zoom.transform, d3.zoomIdentity.translate(width/2, height/2));
-                 
-                 // Clear highlights
-                 gNode.selectAll("g.node").transition().style("opacity", 1); // Reset group opacity
-                 gNode.selectAll("circle").transition().style("opacity", 1).attr("fill", d => levelColors[d.depth] || "#94a3b8");
-                 gNode.selectAll(".label-text").transition().style("opacity", 1).style("fill", d => levelTextColors[d.depth] || "#94a3b8");
-                 gLink.selectAll("path").transition().style("opacity", 1).attr("stroke", "#4b5563");
             };
 
-            // Highlight Project
+            // Build Project Hierarchy Helper
+            function buildProjectHierarchy(projectName, activeSkills) {
+                const activeSet = new Set(activeSkills);
+
+                // Recursive traversal to reconstruct tree with only active paths
+                function traverse(node) {
+                    const isActive = node.id && activeSet.has(node.id);
+
+                    let keptChildren = [];
+                    if (node.children) {
+                        node.children.forEach(child => {
+                            const result = traverse(child);
+                            if (result) keptChildren.push(result);
+                        });
+                    }
+
+                    // Keep node if it matches OR has kept children
+                    if (isActive || keptChildren.length > 0) {
+                        // Return new object to avoid mutating original 'children' array permanent
+                        // But keep 'data' reference if needed? No, new hierarchy needs clean structure.
+                        return {
+                            ...node,
+                            children: keptChildren.length > 0 ? keptChildren : null
+                        };
+                    }
+                    return null;
+                }
+
+                // Process top-level categories
+                const newChildren = [];
+                if (fullSkillData.children) {
+                    fullSkillData.children.forEach(cat => {
+                         const filtered = traverse(cat);
+                         if (filtered) newChildren.push(filtered);
+                    });
+                }
+
+                return {
+                    name: projectName,
+                    children: newChildren
+                };
+            }
+
+            // Highlight Project (Project Focus View)
             window.globalTriggerProjectSelect = (projectName, btnID) => {
                 const project = Object.values(projectsDB).find(p => p.name === projectName);
                 if (!project) return;
-
-                switchLayoutMode('unified');
-
-                // 1. Expand relevant paths first
-                const activeIDs = new Set(project.activeSkills || []);
-                let targets = [];
                 
-                // Helper to check both trees (Note: In unified mode, all are in rootR, but referencing rootL is harmless if empty)
-                [rootL, rootR].forEach(r => {
-                    r.each(d => {
-                        if (d.data.id && activeIDs.has(d.data.id)) {
-                            targets.push(d);
-                        }
-                    });
+                // 1. Build Filtered Hierarchy
+                const newHierarchyData = buildProjectHierarchy(projectName, project.activeSkills);
+                
+                // 2. Switch Mode
+                currentLayoutMode = 'project';
+
+                // 3. Create New Root
+                rootR = d3.hierarchy(newHierarchyData);
+                rootR.x0 = 0; rootR.y0 = 0;
+
+                // Force expand all in this new view
+                rootR.descendants().forEach(d => {
+                    d.children = d.children;
+                    d._children = null;
                 });
                 
-                targets.forEach(d => {
-                    let curr = d;
-                    while (curr.parent) {
-                        if (curr.parent._children) {
-                            curr.parent.children = curr.parent._children;
-                            curr.parent._children = null;
-                        }
-                        curr = curr.parent;
-                    }
-                });
-                
+                // 4. Update
                 update(rootR);
 
-                // 2. Apply Highlighting & Draw Lines
-                setTimeout(() => {
-                    const activeNodes = new Set();
-                    const targetSet = new Set();
-                    
-                    [rootL, rootR].forEach(r => {
-                         r.each(d => {
-                            if (d.data.id && activeIDs.has(d.data.id)) {
-                                targetSet.add(d);
-                                let curr = d;
-                                while(curr) {
-                                    activeNodes.add(curr);
-                                    curr = curr.parent;
-                                }
-                            }
-                        });
-                    });
-
-                    // Dim others
-                    gNode.selectAll("g.node").transition().duration(500)
-                        .style("opacity", d => activeNodes.has(d) ? 1 : 0.1);
-
-                    gLink.selectAll("path.link").transition().duration(500)
-                        .style("opacity", d => activeNodes.has(d.target) ? 1 : 0.1)
-                        .attr("stroke", d => activeNodes.has(d.target) ? "var(--accent)" : "#4b5563");
-                    
-                    // Highlight active
-                    gNode.selectAll("circle")
-                        .transition().duration(500)
-                        .attr("fill", d => targetSet.has(d) ? "var(--accent)" : (d.children ? (levelColors[d.depth] || "#94a3b8") : (levelColors[d.depth] || "#94a3b8")))
-                        .attr("r", d => targetSet.has(d) ? 10 : (levelSizes[d.depth] || 4));
-                        
-                    gNode.selectAll(".label-text")
-                         .transition().duration(500)
-                         .style("fill", d => activeNodes.has(d) ? "var(--accent)" : (levelTextColors[d.depth] || "#94a3b8"))
-                         .style("font-weight", d => activeNodes.has(d) ? "bold" : (d.depth <=1 ? "bold" : "normal"));
-
-                }, 300); // Wait for tree expansion
+                // 5. Visual Styling (Immediate)
+                // Styling is now handled inside update() to prevent transition conflicts
             };
             
             d3.select("#zoom-reset").on("click", window.globalResetView);
