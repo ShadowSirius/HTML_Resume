@@ -121,6 +121,27 @@
             grid-template-columns: 28% 1fr 0px; /* Timeline | Skills | Detail (Hidden by default) */
             overflow: hidden;
             transition: grid-template-columns 0.3s ease;
+            position: relative; /* For overlay */
+        }
+
+        /* OVERLAY SVG for Convergence Lines */
+        #overlay-svg {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none; /* Let clicks pass through */
+            z-index: 50;
+        }
+        .connection-line {
+            fill: none;
+            stroke: #f59e0b; /* Amber */
+            stroke-width: 2px;
+            stroke-dasharray: 8 4;
+            opacity: 0.6;
+            animation: dash 1s linear infinite;
+        }
+        @keyframes dash {
+            to { stroke-dashoffset: -12; }
         }
         
         #workspace.pdf-open {
@@ -452,6 +473,9 @@
                     </div>
                 </div>
             </section>
+            
+            <!-- OVERLAY LAYER -->
+            <svg id="overlay-svg"></svg>
 
             <!-- RIGHT: DETAIL -->
             <aside id="col-detail">
@@ -986,7 +1010,7 @@
             const height = container.node().clientHeight;
             
             const margin = { top: 20, right: 120, bottom: 20, left: 100 };
-            const innerWidth = width - margin.left - margin.right;
+            // Note: innerWidth/Height not strictly used for bidirectional nodeSize layout
             const innerHeight = height - margin.top - margin.bottom;
 
             const svg = container.append("svg")
@@ -995,20 +1019,39 @@
                 .attr("viewBox", [0, 0, width, height])
                 .style("font-family", "var(--font-mono)");
             
-            const g = svg.append("g")
-                .attr("transform", `translate(${margin.left},${margin.top})`);
+            const g = svg.append("g");
+                // transform set by zoom
 
-            // Root Hierarchy
-            const root = d3.hierarchy(fullSkillData);
-            root.x0 = innerHeight / 2;
-            root.y0 = 0;
+            // Split Data into Left and Right Sets for Independent Layouts
+            const rightChildren = fullSkillData.children.filter(c => c.name === "Firmware");
+            const leftChildren = fullSkillData.children.filter(c => c.name !== "Firmware");
 
-            // Sort logic: Keep consistent order
-            root.sort((a, b) => d3.ascending(a.data.name, b.data.name));
+            // Root Hierarchy - Right (Firmware)
+            const rootR = d3.hierarchy({ ...fullSkillData, children: rightChildren });
+            rootR.x0 = 0; rootR.y0 = 0; // Relative to center
+            
+            // Root Hierarchy - Left (Hardware, Digital Twins)
+            const rootL = d3.hierarchy({ ...fullSkillData, children: leftChildren });
+            rootL.x0 = 0; rootL.y0 = 0; // Relative to center
 
-            // Tree Layout: Horizontal (x=vertical, y=horizontal in D3 logic)
-            // Use nodeSize instead of size to prevent squeezing text
-            const tree = d3.tree().nodeSize([30, 160]);
+            // Sort logic
+            // Right: Standard Sort
+            rootR.sort((a, b) => d3.ascending(a.data.name, b.data.name));
+            
+            // Left: Custom Sort (Hardware above Digital Twins)
+            // d3.tree puts lower index at top (negative x) or bottom (positive x)?
+            // Usually index 0 is at top (lowest x value).
+            // We want Hardware at top.
+            rootL.sort((a, b) => {
+                 if(a.depth === 1 && b.depth === 1) {
+                     if(a.data.name === "Hardware") return -1;
+                     if(b.data.name === "Hardware") return 1;
+                 }
+                 return d3.ascending(a.data.name, b.data.name);
+            });
+
+            // Tree Layout
+            const tree = d3.tree().nodeSize([22, 160]);
             
             // Link generator
             const diagonal = d3.linkHorizontal()
@@ -1018,27 +1061,45 @@
             // Level Styles
             const levelColors = ["#ffffff", "#38bdf8", "#a78bfa", "#34d399", "#94a3b8"];
             const levelSizes = [8, 8, 6, 5, 4];
-            // Increased font sizes for readability
             const levelFontSizes = ["18px", "16px", "14px", "13px", "12px"];
-            // Brighter colors for contrast
             const levelTextColors = ["#ffffff", "#38bdf8", "#f1f5f9", "#e2e8f0", "#cbd5e1"];
             
-            // Groups for ordering (Links behind Nodes)
+            // Groups
             const gLink = g.append("g").attr("fill", "none").attr("stroke", "#4b5563").attr("stroke-opacity", 0.4).attr("stroke-width", 1.5);
             const gNode = g.append("g").attr("cursor", "pointer").attr("pointer-events", "all");
 
             // Update Function (Collapsible)
             function update(source) {
                 const duration = 250;
-                const nodes = root.descendants().reverse();
-                const links = root.links();
+                
+                // 1. Compute Layouts Independently (Centers them around 0,0)
+                tree(rootR);
+                tree(rootL);
 
-                // Compute the new tree layout.
-                tree(root);
+                // 2. Post-Process Left Tree (Flip Y)
+                // Also mark them as "left-side" for text anchoring
+                rootL.each(d => {
+                    d.y = -d.y;
+                    d.isLeft = true;
+                });
+                rootR.each(d => {
+                    d.isLeft = false;
+                });
+
+                // 3. Merge Nodes & Links
+                // We exclude rootL's root node from the visual array to avoid duplicate center circle
+                // But we keep its links
+                const nodesR = rootR.descendants();
+                const nodesL = rootL.descendants().filter(d => d.depth > 0); 
+                const nodes = [...nodesR, ...nodesL].reverse();
+                
+                const linksR = rootR.links();
+                const linksL = rootL.links();
+                const links = [...linksR, ...linksL];
 
                 // Nodes
                 const node = gNode.selectAll("g.node")
-                    .data(nodes, d => d.id || (d.id = Math.random())); // ensure unique id if data.id missing
+                    .data(nodes, d => d.id || (d.id = Math.random())); 
 
                 const nodeEnter = node.enter().append("g")
                     .attr("class", "node")
@@ -1057,24 +1118,22 @@
 
                 // Add Circle
                 nodeEnter.append("circle")
-                    .attr("r", 0) // animate in
+                    .attr("r", 0) 
                     .attr("fill", d => d._children ? "#0284c7" : (levelColors[d.depth] || "#94a3b8"))
                     .attr("stroke", "var(--node-stroke)")
                     .attr("stroke-width", 1.5);
 
-                // Add Text
+                // Add Text (Initial)
                 nodeEnter.append("text")
                     .attr("dy", "0.31em")
-                    .attr("x", d => d.children || d._children ? -15 : 15)
-                    .attr("text-anchor", d => d.children || d._children ? "end" : "start")
-                    .text(d => d.depth === 0 ? "" : d.data.name) // Hide root label if desired, or keep
+                    .text(d => d.depth === 0 ? "" : d.data.name) 
                     .style("fill-opacity", 0)
                     .style("font-size", d => levelFontSizes[d.depth] || "12px")
                     .style("fill", d => levelTextColors[d.depth] || "#cbd5e1")
                     .style("font-weight", d => d.depth <= 1 ? "bold" : "normal")
                     .clone(true).lower()
                     .attr("stroke", "var(--bg-main)")
-                    .attr("stroke-width", 2); // Reduced halo width
+                    .attr("stroke-width", 2); 
 
                 // Transition nodes to their new position.
                 const nodeUpdate = node.merge(nodeEnter).transition().duration(duration)
@@ -1084,11 +1143,19 @@
                     .attr("r", d => levelSizes[d.depth] || 4)
                     .attr("fill", d => d._children ? "var(--accent)" : (levelColors[d.depth] || "#94a3b8"));
 
-                // Use selectAll to ensure both the text and its clone (halo) are updated
+                // Dynamic Text Anchor based on side
                 nodeUpdate.selectAll("text")
+                    .attr("x", d => {
+                        if (d.depth === 0) return 0;
+                        return d.y < 0 ? -15 : 15;
+                    })
+                    .attr("text-anchor", d => {
+                        if (d.depth === 0) return "middle";
+                        return d.y < 0 ? "end" : "start";
+                    })
                     .style("fill-opacity", 1);
 
-                // Transition exiting nodes to the parent's new position.
+                // Transition exiting nodes
                 const nodeExit = node.exit().transition().duration(duration)
                     .attr("transform", d => `translate(${source.y},${source.x})`)
                     .remove();
@@ -1107,6 +1174,7 @@
                         return diagonal({source: o, target: o});
                     });
 
+                // Update links - diagonal automatically uses the flipped d.y
                 link.merge(linkEnter).transition().duration(duration)
                     .attr("d", diagonal);
 
@@ -1125,63 +1193,114 @@
             }
 
             // Initial Update
-            update(root);
+            update(rootR);
             
             // Zoom Support
+            // Current Transform Tracker
+            let currentTransform = d3.zoomIdentity.translate(width/2, height/2);
+
             const zoom = d3.zoom()
                 .scaleExtent([0.1, 4])
                 .on("zoom", (event) => {
+                    currentTransform = event.transform;
                     g.attr("transform", event.transform);
+                    // Clear overlay lines on zoom to avoid mismatch
+                    d3.select("#overlay-svg").selectAll("*").remove();
                 });
             
-            // Set initial transform (Centered vertically)
-            // Since we use nodeSize, x=0 is the root. We need to shift it to the middle of the screen height-wise.
-            svg.call(zoom).call(zoom.transform, d3.zoomIdentity.translate(margin.left, innerHeight / 2));
+            // Center Initial View (width/2, height/2)
+            svg.call(zoom).call(zoom.transform, currentTransform);
 
 
             // ==========================================
             // INTERACTION LOGIC (Scoped to instance)
             // ==========================================
             
+            // Helper: Draw Convergence Lines
+            function drawConvergenceLines(btnID, targetNodes) {
+                const overlay = d3.select("#overlay-svg");
+                overlay.selectAll("*").remove(); // clear old
+
+                const btn = document.getElementById(btnID);
+                if (!btn) return;
+                
+                // Get Button Coords
+                const btnRect = btn.getBoundingClientRect();
+                const containerRect = document.getElementById("workspace").getBoundingClientRect();
+                
+                // Start Point (Right center of button, relative to workspace)
+                const startX = btnRect.right - containerRect.left;
+                const startY = btnRect.top + btnRect.height/2 - containerRect.top;
+
+                // Draw lines to each target
+                targetNodes.forEach(d => {
+                    // Calculate Node Screen Position based on Zoom/Pan
+                    // transform(d.y, d.x) -> Note d.x is vertical in D3 tree logic, but here d.y is x-coord, d.x is y-coord
+                    const [tx, ty] = currentTransform.apply([d.y, d.x]);
+                    
+                    // We need to account for the chart container offset if any
+                    // The #chart-container is inside #workspace col 2.
+                    const chartRect = document.getElementById("chart-container").getBoundingClientRect();
+                    const offsetX = chartRect.left - containerRect.left;
+                    const offsetY = chartRect.top - containerRect.top;
+                    
+                    const endX = offsetX + tx;
+                    const endY = offsetY + ty;
+                    
+                    // Bezier Curve
+                    // M startX, startY C (startX+endX)/2, startY (startX+endX)/2, endY endX, endY
+                    const midX = (startX + endX) / 2;
+                    
+                    overlay.append("path")
+                        .attr("class", "connection-line")
+                        .attr("d", `M ${startX},${startY} C ${midX},${startY} ${midX},${endY} ${endX},${endY}`);
+                });
+            }
+
             // Reset
             window.globalResetView = () => {
                  // Expand all
-                 root.descendants().forEach(d => {
-                     if (d._children) {
-                         d.children = d._children;
-                         d._children = null;
-                     }
+                 [rootL, rootR].forEach(r => {
+                     r.descendants().forEach(d => {
+                         if (d._children) {
+                             d.children = d._children;
+                             d._children = null;
+                         }
+                     });
                  });
-                 update(root);
+                 update(rootR); // Source doesn't matter much for reset
                  
                  // Reset Zoom
                  svg.transition().duration(750)
-                    .call(zoom.transform, d3.zoomIdentity.translate(margin.left, innerHeight / 2));
+                    .call(zoom.transform, d3.zoomIdentity.translate(width/2, height/2));
                  
                  // Clear highlights
                  gNode.selectAll("circle").transition().style("opacity", 1).attr("fill", d => levelColors[d.depth] || "#94a3b8");
                  gNode.selectAll("text").transition().style("opacity", 1).style("fill", d => levelTextColors[d.depth] || "#94a3b8");
                  gLink.selectAll("path").transition().style("opacity", 1).attr("stroke", "#4b5563");
+                 
+                 // Clear overlay
+                 d3.select("#overlay-svg").selectAll("*").remove();
             };
 
             // Highlight Project
-            window.globalTriggerProjectSelect = (projectName) => {
+            window.globalTriggerProjectSelect = (projectName, btnID) => {
                 const project = Object.values(projectsDB).find(p => p.name === projectName);
                 if (!project) return;
 
                 // 1. Expand relevant paths first
                 const activeIDs = new Set(project.activeSkills || []);
-                
-                // Find all target nodes in the full hierarchy (even if collapsed)
-                // We need to trace down from root to ensure they are visible
                 let targets = [];
-                root.each(d => {
-                    if (d.data.id && activeIDs.has(d.data.id)) {
-                        targets.push(d);
-                    }
+                
+                // Helper to check both trees
+                [rootL, rootR].forEach(r => {
+                    r.each(d => {
+                        if (d.data.id && activeIDs.has(d.data.id)) {
+                            targets.push(d);
+                        }
+                    });
                 });
                 
-                // Expand parents of targets
                 targets.forEach(d => {
                     let curr = d;
                     while (curr.parent) {
@@ -1193,23 +1312,24 @@
                     }
                 });
                 
-                update(root);
+                update(rootR);
 
-                // 2. Apply Highlighting Styling (after update/transition)
+                // 2. Apply Highlighting & Draw Lines
                 setTimeout(() => {
                     const activeNodes = new Set();
                     const targetSet = new Set();
                     
-                    // Re-query targets after expansion (references might persist but safe to re-check)
-                     root.each(d => {
-                        if (d.data.id && activeIDs.has(d.data.id)) {
-                            targetSet.add(d);
-                            let curr = d;
-                            while(curr) {
-                                activeNodes.add(curr);
-                                curr = curr.parent;
+                    [rootL, rootR].forEach(r => {
+                         r.each(d => {
+                            if (d.data.id && activeIDs.has(d.data.id)) {
+                                targetSet.add(d);
+                                let curr = d;
+                                while(curr) {
+                                    activeNodes.add(curr);
+                                    curr = curr.parent;
+                                }
                             }
-                        }
+                        });
                     });
 
                     // Dim others
@@ -1231,6 +1351,18 @@
                          .style("fill", d => activeNodes.has(d) ? "var(--accent)" : (levelTextColors[d.depth] || "#94a3b8"))
                          .style("font-weight", d => activeNodes.has(d) ? "bold" : (d.depth <=1 ? "bold" : "normal"));
 
+                    // Draw Overlay Lines (Pass the button ID)
+                    if (btnID) {
+                        // Re-find the specific nodes in the updated layout
+                         const finalTargets = [];
+                         [rootL, rootR].forEach(r => {
+                             r.each(d => {
+                                if (d.data.id && activeIDs.has(d.data.id)) finalTargets.push(d);
+                             });
+                         });
+                        drawConvergenceLines(btnID, finalTargets);
+                    }
+
                 }, 300); // Wait for tree expansion
             };
             
@@ -1241,12 +1373,13 @@
         function selectProject(pid) {
             // 1. Highlight Project Button (Timeline)
             document.querySelectorAll('.project-btn').forEach(b => b.classList.remove('active'));
-            const btn = document.getElementById(`btn-${pid}`);
+            const btnID = `btn-${pid}`;
+            const btn = document.getElementById(btnID);
             if(btn) btn.classList.add('active');
 
             // 2. Trigger D3 Animation
             if(window.globalTriggerProjectSelect && projectsDB[pid]) {
-                window.globalTriggerProjectSelect(projectsDB[pid].name);
+                window.globalTriggerProjectSelect(projectsDB[pid].name, btnID);
             }
         }
 
