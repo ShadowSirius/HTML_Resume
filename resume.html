@@ -984,13 +984,49 @@
             const container = d3.select('#chart-container');
             container.html(''); // Clear previous
 
+            // Tree Icon Configuration State
+            const treeLayout = { x: 0, y: 0, scale: 1.0 };
+
+            // Control Container
+            const controlsDiv = document.createElement('div');
+            controlsDiv.style.position = 'absolute';
+            controlsDiv.style.bottom = '20px';
+            controlsDiv.style.right = '20px';
+            controlsDiv.style.zIndex = '100';
+            controlsDiv.style.display = 'flex';
+            controlsDiv.style.flexDirection = 'column';
+            controlsDiv.style.gap = '10px';
+            controlsDiv.style.alignItems = 'flex-end';
+            container.node().appendChild(controlsDiv);
+
+            // Scale Slider
+            const sliderLabel = document.createElement('label');
+            sliderLabel.innerText = "Tree Scale: 1.0";
+            sliderLabel.style.color = "#94a3b8";
+            sliderLabel.style.fontSize = "12px";
+
+            const scaleSlider = document.createElement('input');
+            scaleSlider.type = "range";
+            scaleSlider.min = "0.5";
+            scaleSlider.max = "3.0";
+            scaleSlider.step = "0.1";
+            scaleSlider.value = "1.0";
+            scaleSlider.style.width = "150px";
+
+            scaleSlider.oninput = (e) => {
+                treeLayout.scale = parseFloat(e.target.value);
+                sliderLabel.innerText = `Tree Scale: ${treeLayout.scale.toFixed(1)}`;
+                updateTreeIconTransform();
+            };
+
+            controlsDiv.appendChild(sliderLabel);
+            controlsDiv.appendChild(scaleSlider);
+
             // Export Button for Manual Layout
             const exportBtn = document.createElement('button');
             exportBtn.innerText = "💾 Export Layout";
-            exportBtn.style.position = 'absolute';
-            exportBtn.style.bottom = '20px';
-            exportBtn.style.right = '20px';
-            exportBtn.style.zIndex = '100';
+            exportBtn.style.padding = "6px 12px";
+            exportBtn.style.cursor = "pointer";
             exportBtn.onclick = () => {
                 const offsets = {};
                 // Helper to collect offsets from both trees
@@ -1004,11 +1040,17 @@
                 collect(rootR);
                 collect(rootL);
 
-                const json = JSON.stringify(offsets, null, 2);
+                const exportData = {
+                    nodeOffsets: offsets,
+                    treeIcon: treeLayout
+                };
+
+                const json = JSON.stringify(exportData, null, 2);
                 console.log(json);
                 alert("Layout offsets exported to console.\n" + json);
             };
-            container.node().appendChild(exportBtn);
+            controlsDiv.appendChild(exportBtn);
+
 
             const width = container.node().clientWidth;
             const height = container.node().clientHeight;
@@ -1024,17 +1066,43 @@
             const g = svg.append("g");
 
             // Background Tree (Centered)
-            const gBg = g.append("g").attr("class", "bg-layer").attr("pointer-events", "none");
+            // Use 'pointer-events: all' to allow dragging of the image
+            const gBg = g.append("g")
+                .attr("class", "bg-layer")
+                .attr("cursor", "move");
 
-            // Simple bare tree path
-            const treePath = "M0,80 L0,20 C0,20 -15,0 -35,-20 M0,20 C0,20 15,0 35,-20 M0,50 C0,50 -25,30 -45,10 M0,50 C0,50 25,30 45,10";
-            gBg.append("path")
-                .attr("d", treePath)
-                .attr("stroke", "#334155")
-                .attr("stroke-width", 3)
-                .attr("fill", "none")
-                .attr("stroke-linecap", "round")
-                .attr("transform", "translate(0, -10) scale(1.2)");
+            // Replaced static path with Draggable Image
+            const treeIcon = gBg.append("image")
+                .attr("href", "tree_icon.png")
+                .attr("width", 200)
+                .attr("height", 200)
+                .attr("x", -100) // Center horizontally (width/2)
+                .attr("y", -100); // Center vertically (height/2) or adjust as needed
+
+            // Update Transform Helper
+            function updateTreeIconTransform() {
+                 treeIcon.attr("transform", `translate(${treeLayout.x}, ${treeLayout.y}) scale(${treeLayout.scale})`);
+            }
+            // Initial call
+            updateTreeIconTransform();
+
+            // Drag Behavior for Tree Icon
+            const treeDrag = d3.drag()
+                .on("start", (event) => {
+                    // Stop zoom propagation
+                    event.sourceEvent.stopPropagation();
+                    d3.select(treeIcon.node()).attr("cursor", "grabbing");
+                })
+                .on("drag", (event) => {
+                    treeLayout.x += event.dx;
+                    treeLayout.y += event.dy;
+                    updateTreeIconTransform();
+                })
+                .on("end", () => {
+                     d3.select(treeIcon.node()).attr("cursor", "move");
+                });
+
+            treeIcon.call(treeDrag);
 
 
             // Split Data into Left and Right Sets
@@ -1469,6 +1537,9 @@
                 
                 // 2. Switch Mode
                 currentLayoutMode = 'project';
+
+                // Hide Background Tree
+                d3.select(".bg-layer").transition().duration(500).style("opacity", 0);
 
                 // 3. Create New Root
                 rootR = d3.hierarchy(newHierarchyData);
