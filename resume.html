@@ -1249,6 +1249,7 @@
                 const linesEnter = lines.enter().append("g")
                     .attr("class", "custom-line")
                     .attr("cursor", "pointer")
+                    .on("mousedown", (e) => e.stopPropagation())
                     .on("click", (e, d) => {
                          e.stopPropagation();
                          selectedLineId = d.id;
@@ -1261,7 +1262,8 @@
                     .attr("class", "hit-target")
                     .attr("stroke", "transparent")
                     .attr("stroke-width", 15)
-                    .attr("stroke-linecap", "round");
+                    .attr("stroke-linecap", "round")
+                    .attr("pointer-events", "all");
 
                 // The Visible Line
                 linesEnter.append("line")
