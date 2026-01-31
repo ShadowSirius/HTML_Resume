@@ -987,6 +987,10 @@
             // Tree Icon Configuration State
             const treeLayout = { x: 0, y: 0, scale: 1.0 };
 
+            // Custom Lines State
+            const customLines = [];
+            let selectedLineId = null;
+
             // Control Container
             const controlsDiv = document.createElement('div');
             controlsDiv.style.position = 'absolute';
@@ -997,9 +1001,13 @@
             controlsDiv.style.flexDirection = 'column';
             controlsDiv.style.gap = '10px';
             controlsDiv.style.alignItems = 'flex-end';
+            controlsDiv.style.background = "rgba(15, 23, 42, 0.8)";
+            controlsDiv.style.padding = "10px";
+            controlsDiv.style.borderRadius = "8px";
+            controlsDiv.style.border = "1px solid var(--border)";
             container.node().appendChild(controlsDiv);
 
-            // Scale Slider
+            // --- Tree Scale Controls ---
             const sliderLabel = document.createElement('label');
             sliderLabel.innerText = "Tree Scale: 1.0";
             sliderLabel.style.color = "#94a3b8";
@@ -1022,27 +1030,139 @@
             controlsDiv.appendChild(sliderLabel);
             controlsDiv.appendChild(scaleSlider);
 
+            // --- Custom Line Controls ---
+            const linesLabel = document.createElement('div');
+            linesLabel.innerText = "Custom Lines";
+            linesLabel.style.color = "#e2e8f0";
+            linesLabel.style.fontSize = "12px";
+            linesLabel.style.fontWeight = "bold";
+            linesLabel.style.marginTop = "5px";
+            controlsDiv.appendChild(linesLabel);
+
+            const lineBtnsRow = document.createElement('div');
+            lineBtnsRow.style.display = 'flex';
+            lineBtnsRow.style.gap = '5px';
+
+            const addLineBtn = document.createElement('button');
+            addLineBtn.innerText = "+ Add";
+            addLineBtn.style.padding = "2px 8px";
+            addLineBtn.style.fontSize = "11px";
+            addLineBtn.onclick = () => {
+                const id = "line-" + Date.now();
+                customLines.push({
+                    id: id,
+                    x1: -50, y1: 0,
+                    x2: 50, y2: 0,
+                    stroke: "#38bdf8",
+                    width: 2
+                });
+                renderCustomLines();
+            };
+
+            const delLineBtn = document.createElement('button');
+            delLineBtn.innerText = "Delete";
+            delLineBtn.style.padding = "2px 8px";
+            delLineBtn.style.fontSize = "11px";
+            delLineBtn.onclick = () => {
+                if (selectedLineId) {
+                    const idx = customLines.findIndex(l => l.id === selectedLineId);
+                    if (idx > -1) {
+                        customLines.splice(idx, 1);
+                        selectedLineId = null;
+                        renderCustomLines();
+                        updateLineControls();
+                    }
+                }
+            };
+
+            lineBtnsRow.appendChild(addLineBtn);
+            lineBtnsRow.appendChild(delLineBtn);
+            controlsDiv.appendChild(lineBtnsRow);
+
+            // Line Properties
+            const linePropsRow = document.createElement('div');
+            linePropsRow.style.display = 'flex';
+            linePropsRow.style.gap = '5px';
+            linePropsRow.style.alignItems = 'center';
+            linePropsRow.style.marginTop = "5px";
+
+            const lineColor = document.createElement('input');
+            lineColor.type = "color";
+            lineColor.value = "#38bdf8";
+            lineColor.style.width = "30px";
+            lineColor.style.height = "20px";
+            lineColor.style.border = "none";
+            lineColor.style.padding = "0";
+            lineColor.oninput = (e) => {
+                if (selectedLineId) {
+                    const line = customLines.find(l => l.id === selectedLineId);
+                    if(line) {
+                        line.stroke = e.target.value;
+                        renderCustomLines();
+                    }
+                }
+            };
+
+            const lineWidth = document.createElement('input');
+            lineWidth.type = "range";
+            lineWidth.min = "1";
+            lineWidth.max = "10";
+            lineWidth.value = "2";
+            lineWidth.style.width = "60px";
+            lineWidth.oninput = (e) => {
+                if (selectedLineId) {
+                    const line = customLines.find(l => l.id === selectedLineId);
+                    if(line) {
+                        line.width = parseInt(e.target.value);
+                        renderCustomLines();
+                    }
+                }
+            };
+
+            linePropsRow.appendChild(lineColor);
+            linePropsRow.appendChild(lineWidth);
+            controlsDiv.appendChild(linePropsRow);
+
+            function updateLineControls() {
+                if (selectedLineId) {
+                    const line = customLines.find(l => l.id === selectedLineId);
+                    if (line) {
+                        lineColor.value = line.stroke;
+                        lineWidth.value = line.width;
+                        delLineBtn.disabled = false;
+                        lineColor.disabled = false;
+                        lineWidth.disabled = false;
+                    }
+                } else {
+                    delLineBtn.disabled = true;
+                    lineColor.disabled = true;
+                    lineWidth.disabled = true;
+                }
+            }
+            // Init controls state
+            updateLineControls();
+
+
             // Export Button for Manual Layout
             const exportBtn = document.createElement('button');
             exportBtn.innerText = "💾 Export Layout";
             exportBtn.style.padding = "6px 12px";
             exportBtn.style.cursor = "pointer";
+            exportBtn.style.marginTop = "10px";
             exportBtn.onclick = () => {
                 const offsets = {};
-                // Helper to collect offsets from both trees
-                const collect = (root) => {
-                    if (root.children) {
-                        root.children.forEach(c => {
-                            if (c.data.layout) offsets[c.data.name] = c.data.layout;
-                        });
-                    }
+                // Helper to collect offsets from trees (Level 1 and Level 2)
+                const collect = (node) => {
+                    if (node.data.layout) offsets[node.data.name] = node.data.layout;
+                    if (node.children) node.children.forEach(collect);
                 };
                 collect(rootR);
                 collect(rootL);
 
                 const exportData = {
                     nodeOffsets: offsets,
-                    treeIcon: treeLayout
+                    treeIcon: treeLayout,
+                    customLines: customLines
                 };
 
                 const json = JSON.stringify(exportData, null, 2);
@@ -1103,6 +1223,80 @@
                 });
 
             treeIcon.call(treeDrag);
+
+            // Custom Lines Group (After bg, before nodes)
+            const gCustomLines = g.append("g").attr("class", "custom-lines-layer");
+
+            function renderCustomLines() {
+                const lines = gCustomLines.selectAll("g.custom-line")
+                    .data(customLines, d => d.id);
+
+                const linesEnter = lines.enter().append("g")
+                    .attr("class", "custom-line")
+                    .attr("cursor", "pointer")
+                    .on("click", (e, d) => {
+                         e.stopPropagation();
+                         selectedLineId = d.id;
+                         renderCustomLines(); // Re-render to show selection
+                         updateLineControls();
+                    });
+
+                // The Line
+                linesEnter.append("line")
+                    .attr("stroke-linecap", "round");
+
+                // Endpoints (Handles)
+                const dragHandle = d3.drag()
+                    .on("start", (e) => {
+                        e.sourceEvent.stopPropagation();
+                    })
+                    .on("drag", (e, d) => {
+                         // Determine which handle (1 or 2)
+                         // We attach data specific to handle
+                         // But here we are on the 'g' logic? No, attach to circle.
+                    });
+
+                // Helper for handle drag
+                const handleDrag = (pointKeyX, pointKeyY) => d3.drag()
+                    .on("start", (e) => e.sourceEvent.stopPropagation())
+                    .on("drag", (e, d) => {
+                        d[pointKeyX] += e.dx;
+                        d[pointKeyY] += e.dy;
+                        renderCustomLines();
+                    });
+
+                linesEnter.append("circle").attr("class", "handle-1").attr("r", 5).attr("fill", "#fff").attr("stroke", "#000").call(handleDrag('x1', 'y1'));
+                linesEnter.append("circle").attr("class", "handle-2").attr("r", 5).attr("fill", "#fff").attr("stroke", "#000").call(handleDrag('x2', 'y2'));
+
+                const linesUpdate = lines.merge(linesEnter);
+
+                // Update Line Attributes
+                linesUpdate.select("line")
+                    .attr("x1", d => d.x1).attr("y1", d => d.y1)
+                    .attr("x2", d => d.x2).attr("y2", d => d.y2)
+                    .attr("stroke", d => d.stroke)
+                    .attr("stroke-width", d => d.width)
+                    .attr("opacity", d => (selectedLineId === d.id) ? 1.0 : 0.8)
+                    .attr("filter", d => (selectedLineId === d.id) ? "drop-shadow(0 0 2px white)" : null);
+
+                // Update Handles
+                linesUpdate.select(".handle-1")
+                    .attr("cx", d => d.x1).attr("cy", d => d.y1)
+                    .attr("display", d => (selectedLineId === d.id) ? "block" : "none");
+
+                linesUpdate.select(".handle-2")
+                    .attr("cx", d => d.x2).attr("cy", d => d.y2)
+                    .attr("display", d => (selectedLineId === d.id) ? "block" : "none");
+
+                lines.exit().remove();
+            }
+
+            // Clear selection on bg click
+            svg.on("click", () => {
+                selectedLineId = null;
+                renderCustomLines();
+                updateLineControls();
+            });
 
 
             // Split Data into Left and Right Sets
@@ -1239,21 +1433,28 @@
                 }
 
                 // Apply Manual Layout Offsets (Drag Persistence)
+                // Recursive application allows nested offsets (Level 1 moves children, Level 2 moves independently relative to L1)
                 if (currentLayoutMode === 'split') {
+                    const applyLayoutOffsets = (node) => {
+                        if (node.data.layout) {
+                            const { dx, dy } = node.data.layout;
+                            // Apply to self and all descendants (Cumulative)
+                            // Note: Since we traverse top-down, a Level 2 node will receive
+                            // its parent's offset first, then its own offset here.
+                            node.descendants().forEach(d => {
+                                d.y += dx;
+                                d.x += dy;
+                            });
+                        }
+                        // Recurse to children to check for their own offsets
+                        if (node.children) {
+                            node.children.forEach(applyLayoutOffsets);
+                        }
+                    };
+
                     [rootR, rootL].forEach(root => {
                         if(root.children) {
-                            root.children.forEach(child => {
-                                if (child.data.layout) {
-                                    // Apply offset to child and all descendants
-                                    const { dx, dy } = child.data.layout;
-                                    // dx maps to screen X (d.y), dy maps to screen Y (d.x)
-                                    // because transform is translate(y, x)
-                                    child.descendants().forEach(d => {
-                                        d.y += dx;
-                                        d.x += dy;
-                                    });
-                                }
-                            });
+                            root.children.forEach(applyLayoutOffsets);
                         }
                     });
                 } else {
@@ -1293,18 +1494,29 @@
                     .data(nodes, d => d.data.id || d.data.name);
 
                 // Drag Behavior
+                const isDraggable = (d) => {
+                    if (currentLayoutMode !== 'split') return false;
+                    // Level 1 Nodes (Firmware, Hardware, Digital Twins)
+                    if (d.depth === 1) return true;
+                    // Level 2 Nodes under Digital Twins
+                    if (d.depth === 2 && d.parent && d.parent.data.name === "Digital Twins") return true;
+                    return false;
+                };
+
                 const drag = d3.drag()
                     .on("start", function(event, d) {
+                        if (!isDraggable(d)) return;
                         d3.select(this).attr("cursor", "grabbing");
                     })
                     .on("drag", (event, d) => {
-                        if (currentLayoutMode !== 'split' || d.depth !== 1) return;
+                        if (!isDraggable(d)) return;
                         if (!d.data.layout) d.data.layout = { dx: 0, dy: 0 };
                         d.data.layout.dx += event.dx;
                         d.data.layout.dy += event.dy;
                         update(rootR); // Trigger re-render to propagate offsets
                     })
                     .on("end", function(event, d) {
+                        if (!isDraggable(d)) return;
                         d3.select(this).attr("cursor", "pointer");
                     });
 
@@ -1313,9 +1525,7 @@
                     .attr("id", d => "node-" + (d.data.id || d.data.name.replace(/\s+/g, '_')))
                     .attr("transform", d => `translate(${source.y0},${source.x0})`)
                     .on("click", (event, d) => {
-                        if (d.depth === 1 && currentLayoutMode === 'split') return; // Click handled by drag usually? No, we want both.
-                        // Actually, if we drag, we don't want to click.
-                        // d3.drag suppresses click if moved.
+                        if (isDraggable(d)) return; // Avoid collapsing draggable nodes on click
 
                         // Toggle children on click
                         if (d.children) {
@@ -1328,13 +1538,11 @@
                         update(d);
                     });
 
-                // Apply Drag to Level 1 Nodes
-                nodeEnter.filter(d => d.depth === 1 && currentLayoutMode === 'split')
-                    .call(drag);
+                // Apply Drag to Draggable Nodes
+                nodeEnter.filter(isDraggable).call(drag);
 
-                // Re-apply drag on update for existing nodes if mode changed?
-                // We'll handle that via selection update if needed, but Enter is usually enough if nodes are persistent.
-                node.filter(d => d.depth === 1).call(drag);
+                // Re-apply drag on update (in case mode changed or nodes re-entered)
+                node.filter(isDraggable).call(drag);
 
 
                 // Add Circle (for non-root)
