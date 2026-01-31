@@ -1002,6 +1002,8 @@
             controlsDiv.style.padding = "10px";
             controlsDiv.style.borderRadius = "8px";
             controlsDiv.style.border = "1px solid var(--border)";
+            // Prevent clearing selection when clicking on the control panel
+            controlsDiv.onclick = (e) => e.stopPropagation();
             container.node().appendChild(controlsDiv);
 
 
@@ -1130,6 +1132,10 @@
                 inp.style.border = "1px solid #334155";
                 inp.style.color = "#e2e8f0";
                 inp.style.borderRadius = "3px";
+
+                // Stop click propagation to prevent unselecting line when clicking input
+                inp.onclick = (e) => e.stopPropagation();
+
                 inp.oninput = (e) => {
                     if (selectedLineId) {
                         const line = customLines.find(l => l.id === selectedLineId);
@@ -1250,8 +1256,16 @@
                          updateLineControls();
                     });
 
-                // The Line
+                // Invisible Hit Target (Wider)
                 linesEnter.append("line")
+                    .attr("class", "hit-target")
+                    .attr("stroke", "transparent")
+                    .attr("stroke-width", 15)
+                    .attr("stroke-linecap", "round");
+
+                // The Visible Line
+                linesEnter.append("line")
+                    .attr("class", "visible-line")
                     .attr("stroke-linecap", "round");
 
                 // Endpoints (Handles)
@@ -1283,10 +1297,12 @@
 
                 const linesUpdate = lines.merge(linesEnter);
 
-                // Update Line Attributes
-                linesUpdate.select("line")
+                // Update Line Attributes (Both visible and hit target)
+                linesUpdate.selectAll("line")
                     .attr("x1", d => d.x1).attr("y1", d => d.y1)
-                    .attr("x2", d => d.x2).attr("y2", d => d.y2)
+                    .attr("x2", d => d.x2).attr("y2", d => d.y2);
+
+                linesUpdate.select(".visible-line")
                     .attr("stroke", d => d.stroke)
                     .attr("stroke-width", d => d.width)
                     .attr("opacity", d => (selectedLineId === d.id) ? 1.0 : 0.8)
