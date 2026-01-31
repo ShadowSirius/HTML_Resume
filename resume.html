@@ -984,9 +984,6 @@
             const container = d3.select('#chart-container');
             container.html(''); // Clear previous
 
-            // Tree Icon Configuration State
-            const treeLayout = { x: 0, y: 0, scale: 1.0 };
-
             // Custom Lines State
             const customLines = [];
             let selectedLineId = null;
@@ -1007,28 +1004,6 @@
             controlsDiv.style.border = "1px solid var(--border)";
             container.node().appendChild(controlsDiv);
 
-            // --- Tree Scale Controls ---
-            const sliderLabel = document.createElement('label');
-            sliderLabel.innerText = "Tree Scale: 1.0";
-            sliderLabel.style.color = "#94a3b8";
-            sliderLabel.style.fontSize = "12px";
-
-            const scaleSlider = document.createElement('input');
-            scaleSlider.type = "range";
-            scaleSlider.min = "0.5";
-            scaleSlider.max = "3.0";
-            scaleSlider.step = "0.1";
-            scaleSlider.value = "1.0";
-            scaleSlider.style.width = "150px";
-
-            scaleSlider.oninput = (e) => {
-                treeLayout.scale = parseFloat(e.target.value);
-                sliderLabel.innerText = `Tree Scale: ${treeLayout.scale.toFixed(1)}`;
-                updateTreeIconTransform();
-            };
-
-            controlsDiv.appendChild(sliderLabel);
-            controlsDiv.appendChild(scaleSlider);
 
             // --- Custom Line Controls ---
             const linesLabel = document.createElement('div');
@@ -1123,20 +1098,87 @@
             linePropsRow.appendChild(lineWidth);
             controlsDiv.appendChild(linePropsRow);
 
+            // Coordinate Editor (X1, Y1, X2, Y2)
+            const coordsLabel = document.createElement('div');
+            coordsLabel.innerText = "Coordinates (Start / End)";
+            coordsLabel.style.color = "#e2e8f0";
+            coordsLabel.style.fontSize = "11px";
+            coordsLabel.style.marginTop = "5px";
+            controlsDiv.appendChild(coordsLabel);
+
+            const coordsRow = document.createElement('div');
+            coordsRow.style.display = 'grid';
+            coordsRow.style.gridTemplateColumns = '1fr 1fr';
+            coordsRow.style.gap = '5px';
+
+            const createCoordInput = (label, prop) => {
+                const wrapper = document.createElement('div');
+                wrapper.style.display = 'flex';
+                wrapper.style.alignItems = 'center';
+                wrapper.style.gap = '2px';
+
+                const lbl = document.createElement('span');
+                lbl.innerText = label;
+                lbl.style.color = "#94a3b8";
+                lbl.style.fontSize = "10px";
+
+                const inp = document.createElement('input');
+                inp.type = "number";
+                inp.style.width = "45px";
+                inp.style.fontSize = "11px";
+                inp.style.background = "#1e293b";
+                inp.style.border = "1px solid #334155";
+                inp.style.color = "#e2e8f0";
+                inp.style.borderRadius = "3px";
+                inp.oninput = (e) => {
+                    if (selectedLineId) {
+                        const line = customLines.find(l => l.id === selectedLineId);
+                        if(line) {
+                            line[prop] = parseFloat(e.target.value) || 0;
+                            renderCustomLines();
+                        }
+                    }
+                };
+                wrapper.appendChild(lbl);
+                wrapper.appendChild(inp);
+                return { wrapper, inp };
+            };
+
+            const inputX1 = createCoordInput("X1", "x1");
+            const inputY1 = createCoordInput("Y1", "y1");
+            const inputX2 = createCoordInput("X2", "x2");
+            const inputY2 = createCoordInput("Y2", "y2");
+
+            coordsRow.appendChild(inputX1.wrapper);
+            coordsRow.appendChild(inputY1.wrapper);
+            coordsRow.appendChild(inputX2.wrapper);
+            coordsRow.appendChild(inputY2.wrapper);
+            controlsDiv.appendChild(coordsRow);
+
             function updateLineControls() {
                 if (selectedLineId) {
                     const line = customLines.find(l => l.id === selectedLineId);
                     if (line) {
                         lineColor.value = line.stroke;
                         lineWidth.value = line.width;
+                        inputX1.inp.value = Math.round(line.x1);
+                        inputY1.inp.value = Math.round(line.y1);
+                        inputX2.inp.value = Math.round(line.x2);
+                        inputY2.inp.value = Math.round(line.y2);
+
                         delLineBtn.disabled = false;
                         lineColor.disabled = false;
                         lineWidth.disabled = false;
+                        [inputX1, inputY1, inputX2, inputY2].forEach(i => i.inp.disabled = false);
                     }
                 } else {
                     delLineBtn.disabled = true;
                     lineColor.disabled = true;
                     lineWidth.disabled = true;
+                    [inputX1, inputY1, inputX2, inputY2].forEach(i => {
+                        i.inp.disabled = true;
+                        i.inp.value = "";
+                    });
                 }
             }
             // Init controls state
@@ -1161,7 +1203,6 @@
 
                 const exportData = {
                     nodeOffsets: offsets,
-                    treeIcon: treeLayout,
                     customLines: customLines
                 };
 
@@ -1191,38 +1232,6 @@
                 .attr("class", "bg-layer")
                 .attr("cursor", "move");
 
-            // Replaced static path with Draggable Image
-            const treeIcon = gBg.append("image")
-                .attr("href", "tree_icon.png")
-                .attr("width", 200)
-                .attr("height", 200)
-                .attr("x", -100) // Center horizontally (width/2)
-                .attr("y", -100); // Center vertically (height/2) or adjust as needed
-
-            // Update Transform Helper
-            function updateTreeIconTransform() {
-                 treeIcon.attr("transform", `translate(${treeLayout.x}, ${treeLayout.y}) scale(${treeLayout.scale})`);
-            }
-            // Initial call
-            updateTreeIconTransform();
-
-            // Drag Behavior for Tree Icon
-            const treeDrag = d3.drag()
-                .on("start", (event) => {
-                    // Stop zoom propagation
-                    event.sourceEvent.stopPropagation();
-                    d3.select(treeIcon.node()).attr("cursor", "grabbing");
-                })
-                .on("drag", (event) => {
-                    treeLayout.x += event.dx;
-                    treeLayout.y += event.dy;
-                    updateTreeIconTransform();
-                })
-                .on("end", () => {
-                     d3.select(treeIcon.node()).attr("cursor", "move");
-                });
-
-            treeIcon.call(treeDrag);
 
             // Custom Lines Group (After bg, before nodes)
             const gCustomLines = g.append("g").attr("class", "custom-lines-layer");
@@ -1263,6 +1272,10 @@
                         d[pointKeyX] += e.dx;
                         d[pointKeyY] += e.dy;
                         renderCustomLines();
+                        // Update inputs if this line is currently selected
+                        if (selectedLineId === d.id) {
+                            updateLineControls();
+                        }
                     });
 
                 linesEnter.append("circle").attr("class", "handle-1").attr("r", 5).attr("fill", "#fff").attr("stroke", "#000").call(handleDrag('x1', 'y1'));
