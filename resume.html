@@ -249,8 +249,8 @@
         /* D3 Styles */
         .link {
             fill: none;
-            stroke: #4b5563;
-            stroke-opacity: 0.6;
+            stroke: var(--accent);
+            stroke-opacity: 0.3;
             stroke-width: 1.5px;
             transition: stroke 0.5s, stroke-opacity 0.5s, d 0.5s;
         }
@@ -480,10 +480,12 @@
         {
             "name": "Firmware",
             "id": "s_firmware",
+            "layout": { "dx": -40, "dy": 0 },
             "children": [
                 {
                     "name": "Code",
                     "id": "s_code",
+                    "layout": { "dx": 50, "dy": -120 },
                     "children": [
                         {
                             "name": "Quality",
@@ -525,6 +527,7 @@
                 {
                     "name": "MCU",
                     "id": "s_mcu",
+                    "layout": { "dx": 50, "dy": 150 },
                     "children": [
                         { "name": "TI-DSP", "id": "s_ti_dsp" },
                         { "name": "Renesas", "id": "s_renesas" },
@@ -536,6 +539,7 @@
                 {
                     "name": "Function",
                     "id": "s_function",
+                    "layout": { "dx": 80, "dy": 20 },
                     "children": [
                         { "name": "Bootloader", "id": "s_bootloader" },
                         {
@@ -682,6 +686,7 @@
         {
             "name": "Hardware",
             "id": "s_hardware",
+            "layout": { "dx": -80, "dy": -250 },
             "children": [
                 {
                     "name": "Motor type",
@@ -768,10 +773,12 @@
         {
             "name": "Digital Twins",
             "id": "s_digital_twins",
+            "layout": { "dx": -80, "dy": 300 },
             "children": [
                 {
                     "name": "System",
                     "id": "s_system",
+                    "layout": { "dx": -50, "dy": 40 },
                     "children": [
                         { "name": "Ansys-Twins", "id": "s_ansys_twins" },
                         { "name": "Matlab", "id": "s_matlab" }
@@ -780,6 +787,7 @@
                 {
                     "name": "Circuit",
                     "id": "s_circuit",
+                    "layout": { "dx": -50, "dy": -60 },
                     "children": [
                         { "name": "Ansys-Q3D", "id": "s_ansys_q3d" },
                         { "name": "Simetrix", "id": "s_simetrix" },
