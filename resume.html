@@ -1519,6 +1519,9 @@
                     };
 
                     [rootR, rootL].forEach(root => {
+                        // Apply layout to root itself if present (though root is usually fixed)
+                        if (root.data.layout) applyLayoutOffsets(root);
+
                         if(root.children) {
                             root.children.forEach(applyLayoutOffsets);
                         }
