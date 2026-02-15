@@ -985,7 +985,25 @@
             container.html(''); // Clear previous
 
             // Custom Lines State
-            const customLines = [];
+            // Pre-loaded from user request
+            const rawCoords = [
+                [[100,0],[100,500]], [[50,-50],[50,450]], [[-100,0],[-100,500]], [[-50,-50],[-50,450]], [[0,0],[0,475]],
+                [[-175,520],[0,475]], [[175,520],[0,475]], [[-50,500],[50,450]], [[-50,450],[50,500]],
+                [[-50,500],[-100,500]], [[50,500],[100,500]],
+                [[-50,-50],[-200,100]], [[50,-55],[200,60]],
+                [[0,0],[-125,-127]], [[0,0],[200,200]],
+                [[100,200],[0,-500]], [[-100,0],[-175,-375]],
+                [[-335,-600],[125,-125]]
+            ];
+
+            const customLines = rawCoords.map((pair, idx) => ({
+                id: "line-pre-" + idx,
+                x1: pair[0][0], y1: pair[0][1],
+                x2: pair[1][0], y2: pair[1][1],
+                stroke: "#38bdf8",
+                width: 2
+            }));
+
             let selectedLineId = null;
 
             // Control Container
@@ -1213,8 +1231,17 @@
                 };
 
                 const json = JSON.stringify(exportData, null, 2);
-                console.log(json);
-                alert("Layout offsets exported to console.\n" + json);
+
+                // Create Blob and Download
+                const blob = new Blob([json], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "layout-config.json";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
             };
             controlsDiv.appendChild(exportBtn);
 
