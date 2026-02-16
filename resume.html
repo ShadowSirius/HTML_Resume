@@ -1565,11 +1565,8 @@
                 // Drag Behavior
                 const isDraggable = (d) => {
                     if (currentLayoutMode !== 'split') return false;
-                    // Level 1 Nodes (Firmware, Hardware, Digital Twins)
-                    if (d.depth === 1) return true;
-                    // Level 2 Nodes under Digital Twins
-                    if (d.depth === 2 && d.parent && d.parent.data.name === "Digital Twins") return true;
-                    return false;
+                    // Allow dragging up to level 3 to fine tune leaf positions
+                    return d.depth >= 1 && d.depth <= 3;
                 };
 
                 const drag = d3.drag()
