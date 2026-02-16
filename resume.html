@@ -1744,11 +1744,60 @@
             // Center Initial View (width/2, height/2)
             svg.call(zoom).call(zoom.transform, currentTransform);
 
+            // Auto-Fit Helper
+            function fitViewToNodes(nodes) {
+                if (!nodes || nodes.length === 0) return;
+
+                // 1. Calculate Bounding Box
+                let minX = Infinity, maxX = -Infinity;
+                let minY = Infinity, maxY = -Infinity;
+
+                nodes.forEach(d => {
+                    if (d.y < minX) minX = d.y;
+                    if (d.y > maxX) maxX = d.y;
+                    if (d.x < minY) minY = d.x;
+                    if (d.x > maxY) maxY = d.x;
+                });
+
+                // Add padding
+                const padding = 60;
+                const boxWidth = maxX - minX + (padding * 2);
+                const boxHeight = maxY - minY + (padding * 2);
+
+                if (boxWidth <= 0 || boxHeight <= 0) return;
+
+                // 2. Calculate Scale
+                // Fit into available width/height
+                const scaleX = width / boxWidth;
+                const scaleY = height / boxHeight;
+                let k = Math.min(scaleX, scaleY);
+
+                // Limit max zoom
+                if (k > 2) k = 2;
+                // Limit min zoom (don't zoom out too far if small tree)
+                // if (k < 0.5) k = 0.5;
+
+                // 3. Calculate Translation
+                // Center of the bounding box
+                const cx = (minX + maxX) / 2;
+                const cy = (minY + maxY) / 2;
+
+                // We want to move (cx, cy) to (width/2, height/2)
+                // transform.k * cx + transform.x = width/2
+                // transform.x = width/2 - transform.k * cx
+                const tx = (width / 2) - (k * cx);
+                const ty = (height / 2) - (k * cy);
+
+                const transform = d3.zoomIdentity.translate(tx, ty).scale(k);
+
+                svg.transition().duration(750).call(zoom.transform, transform);
+            }
+
 
             // ==========================================
             // INTERACTION LOGIC (Scoped to instance)
             // ==========================================
-            
+
             // Reset
             window.globalResetView = () => {
                  switchLayoutMode('split');
@@ -1830,6 +1879,13 @@
 
                 // 5. Visual Styling (Immediate)
                 // Styling is now handled inside update() to prevent transition conflicts
+
+                // 6. Auto-Fit View
+                // Wait briefly for D3 layout computation (though synchronous, transitions might be queued)
+                // Actually, update() computes x/y immediately.
+                setTimeout(() => {
+                    fitViewToNodes(rootR.descendants());
+                }, 50);
             };
             
             d3.select("#zoom-reset").on("click", window.globalResetView);
