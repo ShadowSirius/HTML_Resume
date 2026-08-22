@@ -1,0 +1,19 @@
+task: modify-resume-tree
+updated_at_commit: 8f7d475
+load:
+  cards:
+    - feature.resume_tree.renderer
+    - feature.resume_tree.editing
+    - data.resume_tree.content
+    - invariant.resume_tree.preservation
+    - test.resume_tree.regression
+    - risk.resume_tree.visual_qa
+  source_symbols:
+    - rs_portrait.html::Component.buildViz
+    - rs_portrait.html::Component.dragStart
+    - rs_portrait.html::Component.exportResume
+    - rs_portrait.html::SKILL_DATA
+    - rs_portrait.html::PROJECTS
+  tests:
+    - test.resume_tree.regression
+notes: preserve the generated packed wrapper and validate both JSON packing and local file visual behavior

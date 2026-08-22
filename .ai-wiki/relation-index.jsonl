@@ -1,0 +1,10 @@
+{"from":"feature.resume_tree.renderer","relation":"depends_on","to":"data.resume_tree.content"}
+{"from":"feature.resume_tree.renderer","relation":"depends_on","to":"invariant.resume_tree.preservation"}
+{"from":"feature.resume_tree.renderer","relation":"validated_by","to":"test.resume_tree.regression"}
+{"from":"feature.resume_tree.renderer","relation":"related_to","to":"risk.resume_tree.visual_qa"}
+{"from":"feature.resume_tree.editing","relation":"depends_on","to":"data.resume_tree.content"}
+{"from":"feature.resume_tree.editing","relation":"depends_on","to":"invariant.resume_tree.preservation"}
+{"from":"feature.resume_tree.editing","relation":"validated_by","to":"test.resume_tree.regression"}
+{"from":"invariant.resume_tree.preservation","relation":"depends_on","to":"data.resume_tree.content"}
+{"from":"test.resume_tree.regression","relation":"validates","to":"invariant.resume_tree.preservation"}
+{"from":"risk.resume_tree.visual_qa","relation":"related_to","to":"test.resume_tree.regression"}

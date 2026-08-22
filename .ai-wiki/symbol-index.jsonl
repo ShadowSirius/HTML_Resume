@@ -1,0 +1,9 @@
+{"symbol":"Component.buildViz","file":"rs_portrait.html","kind":"method","card":"feature.resume_tree.renderer"}
+{"symbol":"Component.dragStart","file":"rs_portrait.html","kind":"method","card":"feature.resume_tree.renderer"}
+{"symbol":"Component.updateProject","file":"rs_portrait.html","kind":"method","card":"feature.resume_tree.editing"}
+{"symbol":"Component.setOutline","file":"rs_portrait.html","kind":"method","card":"feature.resume_tree.editing"}
+{"symbol":"Component.exportResume","file":"rs_portrait.html","kind":"method","card":"feature.resume_tree.editing"}
+{"symbol":"SKILL_DATA","file":"rs_portrait.html","kind":"constant","card":"data.resume_tree.content"}
+{"symbol":"PROJECTS","file":"rs_portrait.html","kind":"constant","card":"data.resume_tree.content"}
+{"symbol":"CAT","file":"rs_portrait.html","kind":"constant","card":"data.resume_tree.content"}
+{"symbol":"mode dispatch","file":"tests/resume-tree-check.mjs","kind":"test-module","card":"test.resume_tree.regression"}
