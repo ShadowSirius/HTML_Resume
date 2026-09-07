@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="049d1d49-492a-40fa-a965-fa6757131cfb"></script>
+</head>
+<body>
+
+<x-dc>
+<helmet>
+<style id="__page_orient">@page{size:A4 portrait;margin:8mm}</style>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  a{color:#38bdf8;text-decoration:none}
+  a:hover{color:#7dd3fc}
+  #scr::-webkit-scrollbar{width:10px;height:10px}
+  #scr::-webkit-scrollbar-thumb{background:#334155;border-radius:5px}
+  @media print{
+    html,body{background:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    #scr{padding:0 !important;background:#fff !important;display:block !important;overflow:visible !important;height:auto !important}
+    #vp{overflow:visible !important;display:block !important}
+    #toolbar,#editpanel,#outlinepanel,#projectpanel{display:none !important}
+    #a4c{box-shadow:none;border-radius:0}
+  }
+</style>
+<template id="__bundler_thumbnail" data-bg-color="#0f172a">
+  <svg sc-camel-view-box="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#0f172a"></rect>
+    <line x1="600" y1="240" x2="600" y2="560" stroke="#7c8ba5" stroke-width="14" stroke-linecap="round"></line>
+    <path d="M600 330 C520 320 460 290 400 250" stroke="#7c8ba5" stroke-width="9" fill="none" stroke-linecap="round"></path>
+    <path d="M600 380 C690 370 760 340 820 300" stroke="#7c8ba5" stroke-width="9" fill="none" stroke-linecap="round"></path>
+    <ellipse cx="370" cy="240" rx="86" ry="46" fill="#141f33" stroke="#38bdf8" stroke-width="7"></ellipse>
+    <ellipse cx="850" cy="292" rx="86" ry="46" fill="#141f33" stroke="#38bdf8" stroke-width="7"></ellipse>
+    <path d="M600 560 C520 610 470 640 420 700 M600 560 C680 610 730 640 790 700" stroke="#64748b" stroke-width="8" fill="none" stroke-linecap="round"></path>
+    <line x1="180" y1="560" x2="1020" y2="560" stroke="#334155" stroke-width="5" stroke-dasharray="10 24"></line>
+  </svg>
+</template>
+</helmet>
+<div id="scr" style="height:100vh;background:#000;display:flex;flex-direction:column;align-items:center;gap:14px;padding:22px;overflow:hidden;font-family:system-ui,-apple-system,sans-serif">
+  <div id="toolbar" style="display:flex;gap:10px;align-items:center">
+    <button sc-camel-on-click="{{ doPrint }}" style-hover="border-color:#38bdf8;color:#38bdf8" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:7px 14px;border-radius:6px;cursor:pointer;font:600 12px ui-monospace,Menlo,monospace">⎙ Print / PDF</button>
+    <sc-if value="{{ hasSel }}" hint-placeholder-val="{{ true }}">
+      <button sc-camel-on-click="{{ clearSel }}" style-hover="border-color:#38bdf8;color:#38bdf8" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:7px 14px;border-radius:6px;cursor:pointer;font:600 12px ui-monospace,Menlo,monospace">← Clear selection</button>
+    </sc-if>
+    <sc-if value="{{ hasDrag }}" hint-placeholder-val="{{ false }}">
+      <button sc-camel-on-click="{{ resetPos }}" style-hover="border-color:#f87171;color:#f87171" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:7px 14px;border-radius:6px;cursor:pointer;font:600 12px ui-monospace,Menlo,monospace">↺ Reset positions</button>
+    </sc-if>
+    <button sc-camel-on-click="{{ toggleOutline }}" style-hover="border-color:#7dd3fc;color:#7dd3fc" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:7px 14px;border-radius:6px;cursor:pointer;font:600 12px ui-monospace,Menlo,monospace">☰ 技能樹編輯</button>
+    <button sc-camel-on-click="{{ togglePanel }}" style-hover="border-color:#f0abfc;color:#f0abfc" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:7px 14px;border-radius:6px;cursor:pointer;font:600 12px ui-monospace,Menlo,monospace">✎ 編輯面板</button>
+    <button sc-camel-on-click="{{ exportResume }}" style-hover="border-color:#34d399;color:#34d399" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:7px 14px;border-radius:6px;cursor:pointer;font:600 12px ui-monospace,Menlo,monospace">SAVE JSON</button>
+    <button sc-camel-on-click="{{ toggleProjectPanel }}" style-hover="border-color:#fb7185;color:#fb7185" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:7px 14px;border-radius:6px;cursor:pointer;font:600 12px ui-monospace,Menlo,monospace">PROJECT EDITOR</button>
+    <span style="font:500 11px ui-monospace,Menlo,monospace;color:#475569">drag nodes/cards to move · scroll to zoom, drag empty area to pan · click a root line to change its style</span>
+    <div style="display:flex;gap:6px;margin-left:auto;align-items:center">
+      <button sc-camel-on-click="{{ zoomOut }}" style-hover="border-color:#38bdf8;color:#38bdf8" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;width:30px;height:30px;border-radius:6px;cursor:pointer;font:700 15px ui-monospace">−</button>
+      <button sc-camel-on-click="{{ zoomReset }}" style-hover="border-color:#38bdf8;color:#38bdf8" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:0 10px;height:30px;border-radius:6px;cursor:pointer;font:600 11px ui-monospace">{{ zoomPct }}</button>
+      <button sc-camel-on-click="{{ zoomIn }}" style-hover="border-color:#38bdf8;color:#38bdf8" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;width:30px;height:30px;border-radius:6px;cursor:pointer;font:700 15px ui-monospace">+</button>
+    </div>
+  </div>
+  <sc-if value="{{ outlineOpen }}" hint-placeholder-val="{{ false }}">
+  <div id="outlinepanel" style="position:fixed;top:76px;right:18px;z-index:22;width:396px;max-height:calc(100vh - 100px);background:#0b1220;border:1px solid #334155;border-radius:10px;display:flex;flex-direction:column;box-shadow:0 12px 44px rgba(0,0,0,.65)">
+    <div style="display:flex;align-items:center;gap:10px;padding:11px 13px;border-bottom:1px solid #1e293b">
+      <span style="font:700 10px ui-monospace,Menlo,monospace;color:#7dd3fc;letter-spacing:.12em">SKILL TREE</span>
+      <span style="font:500 10.5px ui-monospace;color:#64748b">{{ nodeCount }} nodes</span>
+      <span style="flex:1"></span>
+      <button sc-camel-on-click="{{ resetOutline }}" style="background:none;border:1px solid #334155;color:#94a3b8;padding:4px 9px;border-radius:5px;cursor:pointer;font:600 10px ui-monospace">還原</button>
+      <button sc-camel-on-click="{{ toggleOutline }}" style="background:none;border:none;color:#64748b;cursor:pointer;font:700 14px ui-monospace">✕</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;padding:9px 13px;border-bottom:1px solid #1e293b">
+      <span style="font:600 9.5px ui-monospace;color:#64748b;letter-spacing:.08em">顯示層數</span>
+      <sc-for list="{{ depthChips }}" as="c" hint-placeholder-count="6">
+        <button sc-camel-on-click="{{ c.onPick }}" style="background:{{ c.bg }};color:{{ c.fg }};border:1px solid #334155;border-radius:20px;padding:3px 10px;cursor:pointer;font:700 10px ui-monospace">{{ c.label }}</button>
+      </sc-for>
+    </div>
+    <div style="flex:1;overflow:auto;padding:7px 9px;display:flex;flex-direction:column;gap:2px;min-height:120px">
+      <sc-for list="{{ rows }}" as="r" hint-placeholder-count="8">
+        <div style-hover="background:#131f36" style="display:flex;align-items:center;gap:4px;padding:1px 4px 1px {{ r.pad }};border-radius:5px">
+          <span style="width:5px;height:5px;border-radius:50%;background:{{ r.color }};flex:none"></span>
+          <input value="{{ r.name }}" sc-camel-on-change="{{ r.onEdit }}" style="flex:1;min-width:0;background:transparent;border:none;outline:none;color:{{ r.color }};font-size:{{ r.size }};font-weight:{{ r.weight }};font-family:system-ui;padding:3px 2px">
+          <div style="display:flex;gap:1px;flex:none">
+            <button sc-camel-on-click="{{ r.out }}" title="升一層" style="background:none;border:none;color:#64748b;cursor:pointer;font:700 10px ui-monospace;padding:2px 3px">◀</button>
+            <button sc-camel-on-click="{{ r.inn }}" title="降一層" style="background:none;border:none;color:#64748b;cursor:pointer;font:700 10px ui-monospace;padding:2px 3px">▶</button>
+            <button sc-camel-on-click="{{ r.up }}" title="上移" style="background:none;border:none;color:#64748b;cursor:pointer;font:700 10px ui-monospace;padding:2px 3px">▲</button>
+            <button sc-camel-on-click="{{ r.down }}" title="下移" style="background:none;border:none;color:#64748b;cursor:pointer;font:700 10px ui-monospace;padding:2px 3px">▼</button>
+            <button sc-camel-on-click="{{ r.child }}" title="新增子項" style="background:none;border:none;color:#7dd3fc;cursor:pointer;font:700 11px ui-monospace;padding:2px 3px">＋</button>
+            <button sc-camel-on-click="{{ r.del }}" title="刪除（含子項）" style="background:none;border:none;color:#f87171;cursor:pointer;font:700 10px ui-monospace;padding:2px 3px">✕</button>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="border-top:1px solid #1e293b;padding:9px 11px;display:flex;flex-direction:column;gap:6px">
+      <span style="font:600 9.5px ui-monospace;color:#64748b;letter-spacing:.08em">純文字模式（縮排兩格＝下一層）</span>
+      <textarea value="{{ outlineText }}" sc-camel-on-change="{{ onOutline }}" spellcheck="false" style="height:132px;resize:vertical;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#cbd5e1;padding:8px;font:500 11px/1.5 ui-monospace,Menlo,monospace;outline:none;white-space:pre;overflow:auto"></textarea>
+    </div>
+  </div>
+  </sc-if>
+  <sc-if value="{{ projectPanelOpen }}" hint-placeholder-val="{{ false }}">
+  <div id="projectpanel" style="position:fixed;top:76px;left:282px;z-index:21;width:310px;max-height:calc(100vh - 100px);overflow:auto;background:#0b1220;border:1px solid #334155;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:9px;box-shadow:0 12px 40px rgba(0,0,0,.6)">
+    <div style="display:flex;align-items:center;gap:8px"><span style="font:700 10px ui-monospace;color:#fb7185;letter-spacing:.12em">PROJECT EDITOR</span><span style="flex:1"></span><button sc-camel-on-click="{{ toggleProjectPanel }}" style="background:none;border:none;color:#64748b;cursor:pointer">x</button></div>
+    <sc-raw-select value="{{ selectedProjectId }}" sc-camel-on-change="{{ pickProject }}" style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:7px"><sc-for list="{{ projectOptions }}" as="p" hint-placeholder-count="10"><option value="{{ p.id }}">{{ p.label }}</option></sc-for></sc-raw-select>
+    <input value="{{ projectEdit.name }}" sc-camel-on-change="{{ onProjectName }}" placeholder="Project name" style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:7px">
+    <input value="{{ projectEdit.year }}" sc-camel-on-change="{{ onProjectYear }}" placeholder="Year" style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:7px">
+    <textarea value="{{ projectEdit.desc }}" sc-camel-on-change="{{ onProjectDesc }}" placeholder="Description" style="height:58px;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:7px;resize:vertical"></textarea>
+    <textarea value="{{ projectEdit.result }}" sc-camel-on-change="{{ onProjectResult }}" placeholder="Result / metric" style="height:58px;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#a7f3d0;padding:7px;resize:vertical"></textarea>
+    <textarea value="{{ projectSkillsText }}" sc-camel-on-change="{{ onProjectSkills }}" placeholder="Skill IDs, comma separated" style="height:82px;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#c4b5fd;padding:7px;font:500 10px/1.4 ui-monospace;resize:vertical"></textarea>
+    <div style="font:500 9.5px/1.35 system-ui;color:#64748b">Auto-saved. Unknown skill IDs are ignored.</div>
+    <button sc-camel-on-click="{{ resetProject }}" style="background:#0f172a;border:1px solid #7f1d1d;color:#fca5a5;padding:7px;border-radius:6px;cursor:pointer">Reset selected project</button>
+  </div>
+  </sc-if>
+  <sc-if value="{{ panelOpen }}" hint-placeholder-val="{{ false }}">
+  <div id="editpanel" style="position:fixed;top:76px;left:18px;z-index:20;width:246px;max-height:calc(100vh - 100px);overflow:auto;background:#0b1220;border:1px solid #334155;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px;box-shadow:0 12px 40px rgba(0,0,0,.6)">
+    <div style="font:700 10px ui-monospace,Menlo,monospace;color:#f0abfc;letter-spacing:.12em">MANUAL EDITOR</div>
+    <input value="{{ newName }}" sc-camel-on-change="{{ onName }}" placeholder="節點名稱 node name" style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:7px 9px;font:500 12px system-ui;outline:none">
+    <sc-raw-select value="{{ newCat }}" sc-camel-on-change="{{ onCat }}" style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:7px 9px;font:500 12px system-ui">
+      <sc-for list="{{ cats }}" as="c" hint-placeholder-count="4"><option value="{{ c }}">{{ c }}</option></sc-for>
+    </sc-raw-select>
+    <div style="display:flex;gap:8px">
+      <button sc-camel-on-click="{{ setAdd }}" style="flex:1;background:#0f172a;border:1px solid #334155;color:#cbd5e1;padding:8px;border-radius:6px;cursor:pointer;font:700 11px ui-monospace">＋ 新增節點</button>
+      <button sc-camel-on-click="{{ setLink }}" style="flex:1;background:#0f172a;border:1px solid #334155;color:#cbd5e1;padding:8px;border-radius:6px;cursor:pointer;font:700 11px ui-monospace">／ 拉線</button>
+    </div>
+    <div style="font:500 10.5px/1.4 system-ui;color:#7c8ba5">模式：{{ mode }} · {{ modeHint }}</div>
+    <div style="height:1px;background:#1e293b"></div>
+    <div style="font:700 9.5px ui-monospace;color:#64748b;letter-spacing:.1em">NODES</div>
+    <sc-for list="{{ uNodes }}" as="n" hint-placeholder-count="2">
+      <div style="display:flex;align-items:center;gap:7px;font:500 11px system-ui;color:#cbd5e1">
+        <span style="width:8px;height:8px;border-radius:50%;background:{{ n.color }};flex:none"></span>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ n.name }}</span>
+        <button sc-camel-on-click="{{ n.del }}" style="background:none;border:none;color:#f87171;cursor:pointer;font:700 12px ui-monospace">✕</button>
+      </div>
+    </sc-for>
+    <div style="font:700 9.5px ui-monospace;color:#64748b;letter-spacing:.1em">LINKS</div>
+    <sc-for list="{{ uLinks }}" as="l" hint-placeholder-count="2">
+      <div style="display:flex;align-items:center;gap:7px;font:500 10.5px system-ui;color:#cbd5e1">
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ l.text }}</span>
+        <button sc-camel-on-click="{{ l.del }}" style="background:none;border:none;color:#f87171;cursor:pointer;font:700 12px ui-monospace">✕</button>
+      </div>
+    </sc-for>
+    <button sc-camel-on-click="{{ clearAll }}" style-hover="border-color:#f87171;color:#f87171" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:7px;border-radius:6px;cursor:pointer;font:600 11px ui-monospace">清除全部手動內容</button>
+  </div>
+  </sc-if>
+  <div id="vp" sc-camel-on-wheel="{{ onWheel }}" sc-camel-on-context-menu="{{ onContextMenu }}" sc-camel-on-pointer-down="{{ onPanStart }}" sc-camel-on-pointer-move="{{ onPanMove }}" sc-camel-on-pointer-up="{{ onPanEnd }}" sc-camel-on-pointer-leave="{{ onPanEnd }}" style="{{ vpStyle }}">
+  <div id="a4fit" style="{{ fitStyle }}">
+  <div id="a4c" style="{{ containerStyle }}">
+    <header style="flex:none;background:#1e293b;border-bottom:1px solid #334155;display:flex;justify-content:space-between;align-items:center;gap:20px;padding:12px 24px">
+      <div>
+        <div style="font:700 22px system-ui;color:#fff;letter-spacing:-.5px">Jay Huang</div>
+        <div style="font:500 11px ui-monospace,Menlo,monospace;color:#38bdf8;margin-top:2px">// High-Performance Motor Control &amp; Embedded Systems</div>
+      </div>
+      <div style="display:flex;gap:18px;align-items:center;font:400 10.5px system-ui;color:#94a3b8">
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <div>📧 <a href="mailto:jay.huang@email.com">jay.huang@email.com</a></div>
+          <div>📱 +886 912 345 678</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px;border-left:1px solid #334155;padding-left:18px">
+          <div>📍 Taipei, Taiwan</div>
+          <div>🔗 <a href="#">linkedin.com/in/jayhuang</a></div>
+        </div>
+      </div>
+    </header>
+    <div style="flex:1;position:relative;background:#0f172a;min-height:0">
+      {{ viz }}
+    </div>
+  </div>
+  </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script="" data-props="{&quot;$preview&quot;:{&quot;width&quot;:760,&quot;height&quot;:1050},&quot;rootStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;straight&quot;,&quot;curved&quot;,&quot;stepped&quot;],&quot;default&quot;:&quot;curved&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Roots&quot;},&quot;sortDirection&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;oldest-bottom&quot;,&quot;newest-bottom&quot;],&quot;default&quot;:&quot;oldest-bottom&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Layout&quot;},&quot;showSubskillLabels&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Roots&quot;}}">
+const SKILL_DATA = {
+  name: "Skills Ecosystem", children: [
+    { name: "Embedded Firmware", id: "s_firmware", children: [
+      { name: "Languages", id: "s_language", children: [
+        { name: "Assembly", id: "s_assembly" }, { name: "C", id: "s_c" }
+      ]},
+      { name: "MCU Platforms", id: "s_mcu", children: [
+        { name: "TI-DSP", id: "s_ti_dsp" }, { name: "Renesas", id: "s_renesas" }, { name: "Microchip", id: "s_microchip" }, { name: "ST", id: "s_st" }, { name: "NXP", id: "s_nxp" }
+      ]},
+      { name: "Embedded Functions", id: "s_function", children: [
+        { name: "Embedded System", id: "s_embedded_system_skill" },
+        { name: "Bootloader", id: "s_bootloader" },
+        { name: "Communication", id: "s_communication", children: [
+          { name: "SPI", id: "s_spi" }, { name: "UART", id: "s_uart" },
+          { name: "CAN", id: "s_can", children: [{ name: "ISO15762", id: "s_iso15762" }, { name: "ISO14230", id: "s_iso14230" }] }
+        ]}
+      ]}
+    ]},
+    { name: "Control & Power Conversion", id: "s_controller", children: [
+      { name: "Engine Control", id: "s_enginecontrol" },
+      { name: "DC Bus", id: "s_dc_bus", children: [{ name: "PAM", id: "s_pam" }, { name: "CV/CC", id: "s_cv_cc" }] },
+      { name: "Grid / AC Load", id: "s_grid_ac_load", children: [{ name: "MPPT", id: "s_mppt" }, { name: "PFC", id: "s_pfc" }, { name: "Droop Control", id: "s_droopcontrol" }] },
+      { name: "Motor Control", id: "s_motorcontrol", children: [
+        { name: "Capless", id: "s_capless" }, { name: "Speed Control", id: "s_speed_control" }, { name: "Position Control", id: "s_position_control" },
+        { name: "MTPA", id: "s_mtpa" }, { name: "Flux Weakening", id: "s_fluxweakening" }, { name: "\u03b8v Control", id: "s__v_control" },
+        { name: "FOC", id: "s_foc" }, { name: "V/F", id: "s_v_f" }, { name: "I/F", id: "s_i_f" }
+      ]},
+      { name: "Position Sensing", id: "s_positionsensor", children: [
+        { name: "Sensorless / Back-EMF", id: "s_sensorless" }, { name: "Hall Sensor", id: "s_hallsensor" },
+        { name: "Encoder", id: "s_encoder" }, { name: "Resolver", id: "s_resolver" }
+      ]},
+      { name: "Modulation", id: "s_modulation", children: [
+        { name: "SPWM", id: "s_spwm" }, { name: "SVPWM", id: "s_svpwm" }, { name: "DPWM1", id: "s_dpwm1" },
+        { name: "DPWM Min", id: "s_dpwm_min" }, { name: "Six-Step / One-Pulse", id: "s_sixstep_onepulse" }
+      ]}
+    ]},
+    { name: "Hardware & Test Systems", id: "s_hardware", children: [
+      { name: "Motor Types", id: "s_motor_type", children: [
+        { name: "PMSM", id: "s_pmsm" }, { name: "IM", id: "s_im" }, { name: "Six-Phase PMSM", id: "s_two_segment_pmsm_six_phase_pmsm_" },
+        { name: "PMASynRM", id: "s_pmasynrm" }, { name: "SynRM", id: "s_synrm" }
+      ]},
+      { name: "Power Components", id: "s_component", children: [
+        { name: "IGBT", id: "s_igbt" }, { name: "MOSFET", id: "s_mosfet" }, { name: "GaN", id: "s_gan" }, { name: "SiC", id: "s_sic" }
+      ]},
+      { name: "Hardware Layout", id: "s_layout", children: [{ name: "Peripheral", id: "s_peripheral" }, { name: "Power Stage", id: "s_powerstage" }] },
+      { name: "Dynamometer", id: "s_dyno", children: [
+        { name: "Active Load", id: "s_activeload", children: [{ name: "Yaskawa", id: "s_yaskawa" }, { name: "YL", id: "s_yl" }, { name: "Delta", id: "s_delta" }, { name: "Siemens", id: "s_siemens" }] },
+        { name: "Passive Load (EM Brake)", id: "s_passiveload" },
+        { name: "Shaft Alignment", id: "s_shafts_alignment", children: [{ name: "Dial Indicator", id: "s_dial_indicator" }, { name: "Laser Alignment", id: "s_laser_alignment_tool" }] }
+      ]},
+      { name: "Measurement", id: "s_measurement", children: [
+        { name: "Motor Characteristics (R, L, Ke, Kt, J)", id: "s_motor_characteristic" },
+        { name: "System / Circuit (Bode, FFT)", id: "s_system_circuit_characteristic" }
+      ]}
+    ]},
+    { name: "Modelling & Digital Twin", id: "s_digital_twins", children: [
+      { name: "System Modelling", id: "s_system", children: [{ name: "Ansys Twins", id: "s_ansys_twins" }, { name: "MATLAB", id: "s_matlab" }] },
+      { name: "Circuit Modelling", id: "s_circuit", children: [{ name: "Ansys Q3D", id: "s_ansys_q3d" }, { name: "SIMetrix", id: "s_simetrix" }, { name: "PSpice", id: "s_pspice" }, { name: "PSIM", id: "s_psim" }] }
+    ]},
+    { name: "AI Engineering", id: "s_code", children: [
+      { name: "Analysis Automation", id: "s_quality", children: [
+        { name: "Dynamic Analysis (MATLAB)", id: "s_dynamicanalysis" }, { name: "Python & GUI", id: "s_python" }
+      ]}
+    ]},
+    { name: "Engineering Process & Standards", id: "s_training", children: [
+      { name: "Standards", id: "s_standards", children: [{ name: "ISO 26262", id: "s_iso26262" }, { name: "ASPICE", id: "s_aspice" }] },
+      { name: "Static Analysis (Polyspace)", id: "s_staticanalysis" }
+    ]}
+  ]
+};
+
+const PROJECTS = {
+  s_pmasynrm: { name: "PMASynRM", type: "Research", app: "Motor", year: "2019", tags: ["620V", "4.5kW", "PhD"], desc: "Non-rare-earth PM-assisted SynRM", result: "\u03b8v control cuts torque ripple", activeSkills: ["s_fluxweakening", "s_foc", "s_mtpa", "s_matlab", "s_ansys_twins", "s__v_control"] },
+  s_two_segment_pmsm: { name: "Two-segment PMSM", type: "Research", app: "Motor", year: "2018", tags: ["Six-Phase"], desc: "Fault-tolerant six-phase PMSM", result: "Fault-tolerant six-phase control", activeSkills: ["s_mtpa", "s_fluxweakening", "s_foc", "s_svpwm", "s_two_segment_pmsm_six_phase_pmsm_"] },
+  s_generator: { name: "Generator", type: "Product", app: "Generator", year: "2016", tags: ["3.2kW", "THDv 0.8%"], desc: "Portable low-THD engine generator", result: "THDv below 0.8%", activeSkills: ["s_c", "s_matlab", "s_cv_cc", "s_droopcontrol", "s_pmsm"] },
+  s_pv_inverter: { name: "PV Inverter", type: "Product", app: "Grid", year: "2017", tags: ["Grid-tie"], desc: "Solar PV grid-tie inverter, MPPT", result: "99.5% MPPT efficiency", activeSkills: ["s_c", "s_pfc", "s_mppt"] },
+  s_isg: { name: "ISG Controller", type: "Product", app: "EV", year: "2020", tags: ["100A", "4kW", "12krpm"], desc: "Automotive ISG, CAN diagnostics", result: "Passed 100A at 12krpm", activeSkills: ["s_c", "s_bootloader", "s_iso14230", "s_matlab", "s_cv_cc", "s_iso15762", "s_assembly", "s_pmsm"] },
+  s_range_extended_e_scooter: { name: "Range-Ext E-Scooter", type: "Product", app: "EV", year: "2021", tags: ["3kW"], desc: "Range-extended e-scooter drive", result: "3kW, validated vs Ansys Twins", activeSkills: ["s_powerstage", "s_matlab", "s_peripheral", "s_ansys_twins", "s_cv_cc", "s_assembly", "s_enginecontrol", "s_pmsm"] },
+  s_escooter: { name: "E-Scooter", type: "Product", app: "EV", year: "2022", tags: ["6kW"], desc: "Mass-production 6kW scooter drive", result: "Cost-down on a lower-end MCU", activeSkills: ["s_matlab", "s_powerstage", "s_peripheral", "s_assembly", "s_pmsm"] },
+  s_dynamicboost_dcac: { name: "DynamicBoost + DCAC", type: "Product", app: "EV", year: "2022", tags: ["12kW"], desc: "12kW boost + DC-AC converter", result: "High-density power stage", activeSkills: ["s_powerstage", "s_pmsm", "s_svpwm"] },
+  s_embedded_system: { name: "Embedded System", type: "Product", app: "Infra", year: "2020", tags: ["From-scratch"], desc: "Embedded base layer from scratch", result: "Reusable linker scripts + IVT", activeSkills: ["s_assembly", "s_c", "s_bootloader"] },
+  s_refrigerator: { name: "Refrigerator", type: "Product", app: "Appliance", year: "2023", tags: ["Compressor"], desc: "Sensorless compressor drive", result: "High efficiency at low speed", activeSkills: ["s_c", "s_pmsm", "s_sensorless"] }
+};
+
+const PROJECT_DEFAULTS = JSON.parse(JSON.stringify(PROJECTS));
+const TIMELINE = [
+  { time: "PhD", projects: ["s_pmasynrm", "s_two_segment_pmsm"] },
+  { time: "Master", projects: ["s_generator", "s_pv_inverter"] },
+  { time: "Industry", projects: ["s_isg", "s_range_extended_e_scooter", "s_escooter", "s_dynamicboost_dcac", "s_embedded_system", "s_refrigerator"] }
+];
+
+const CAT = { "Embedded Firmware": "#38bdf8", "Control & Power Conversion": "#fb7185", "Hardware & Test Systems": "#34d399", "Modelling & Digital Twin": "#a78bfa", "AI Engineering": "#f0abfc", "Engineering Process & Standards": "#fbbf24" };
+const ERA = { Master: "#34d399", PhD: "#a78bfa", Industry: "#38bdf8" };
+const RIB = { 2: 0.5, 3: 0.55, 4: 0.6, 5: 0.6, 6: 0.6 };
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    let d = {}, ls = {};
+    try { d = JSON.parse(localStorage.getItem("resumeTreeDragV1") || "{}") || {}; } catch (e) {}
+    try { ls = JSON.parse(localStorage.getItem("resumeTreeLinkStyleV1") || "{}") || {}; } catch (e) {}
+    let cu = { nodes: [], links: [] };
+    try { const j = JSON.parse(localStorage.getItem("resumeTreeCustomV1") || "null"); if (j && j.nodes) cu = j; } catch (e) {}
+    try { const pe = JSON.parse(localStorage.getItem("resumeTreeProjectsV1") || "{}"); Object.keys(pe).forEach(id => { if (PROJECTS[id]) Object.assign(PROJECTS[id], pe[id]); }); } catch (e) {}
+    let outline = null;
+    try {
+      const legacy = localStorage.getItem("resumeTreeOutlineV1");
+      if (legacy && !localStorage.getItem("resumeTreeOutlineV1Backup")) localStorage.setItem("resumeTreeOutlineV1Backup", legacy);
+      outline = localStorage.getItem("resumeTreeOutlineV2");
+    } catch (e) {}
+    this.state = { selected: null, drag: d, linkStyle: ls, menu: null, zoom: 1, panX: 0, panY: 0,
+      mode: null, custom: cu, linkFrom: null, newName: "", newCat: "Embedded Firmware", panelOpen: false, projectPanelOpen: false, projectTick: 0,
+      outline,
+      outlineOpen: false, focusLine: null, maxDepth: 99, fit: 1 };
+  }
+  // ---------- outline text <-> skill tree ----------
+  serializeTree(n) {
+    const out = [];
+    (n.children || []).forEach(function w(c, _i, _a, d) { d = d || 0; out.push("  ".repeat(d) + c.name); (c.children || []).forEach(g => w(g, 0, 0, d + 1)); });
+    return out.join("\n");
+  }
+  slug(s) { return "s_" + s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, ""); }
+  parseOutline(txt) {
+    const root = { name: SKILL_DATA.name, children: [] }, stack = [{ d: -1, node: root }], seen = {};
+    txt.split("\n").forEach(raw => {
+      if (!raw.trim()) return;
+      const ind = raw.match(/^[\t ]*/)[0].replace(/\t/g, "  ").length, d = Math.floor(ind / 2);
+      const name = raw.trim().replace(/^[-•*]\s*/, "");
+      let id = this.slug(name); while (seen[id]) id += "_";
+      seen[id] = 1;
+      const node = { name, id, children: [] };
+      while (stack.length > 1 && stack[stack.length - 1].d >= d) stack.pop();
+      stack[stack.length - 1].node.children.push(node);
+      stack.push({ d, node });
+    });
+    const prune = n => { (n.children || []).forEach(prune); if (n.children && !n.children.length) delete n.children; };
+    prune(root);
+    return root;
+  }
+  tree() {
+    const t = this.state.outline;
+    if (t == null) return SKILL_DATA;
+    if (this._treeCache && this._treeCacheSrc === t) return this._treeCache;
+    let p; try { p = this.parseOutline(t); } catch (e) { return SKILL_DATA; }
+    if (!p.children || !p.children.length) return SKILL_DATA;
+    this._treeCacheSrc = t; this._treeCache = p;
+    return p;
+  }
+  visibleTree() {
+    const md = this.state.maxDepth, src = this.tree();
+    if (md >= 99) return src;
+    const cut = (n, d) => { const o = { name: n.name, id: n.id }; if (n.children && d < md) o.children = n.children.map(c => cut(c, d + 1)); return o; };
+    return cut(src, 0);
+  }
+  outlineText() { return this.state.outline != null ? this.state.outline : this.serializeTree(SKILL_DATA); }
+  outlineLines() {
+    return this.outlineText().split("\n").map((raw, i) => {
+      const ind = raw.match(/^[\t ]*/)[0].replace(/\t/g, "  ").length;
+      return { i, depth: Math.floor(ind / 2), name: raw.trim(), blank: !raw.trim() };
+    }).filter(l => !l.blank);
+  }
+  shiftLine(i, dir) {
+    const lines = this.outlineText().split("\n");
+    if (dir < 0) lines[i] = lines[i].replace(/^ {0,2}/, "");
+    else lines[i] = "  " + lines[i];
+    this.setOutline(lines.join("\n"));
+  }
+  moveLine(i, dir) {
+    const lines = this.outlineText().split("\n"), j = i + dir;
+    if (j < 0 || j >= lines.length) return;
+    const t = lines[i]; lines[i] = lines[j]; lines[j] = t;
+    this.setOutline(lines.join("\n"));
+  }
+  renameLine(i, name) {
+    const lines = this.outlineText().split("\n"), ind = lines[i].match(/^[\t ]*/)[0];
+    lines[i] = ind + name;
+    this.setOutline(lines.join("\n"));
+  }
+  addLineAfter(i) {
+    const lines = this.outlineText().split("\n"), ind = lines[i] ? lines[i].match(/^[\t ]*/)[0] : "";
+    lines.splice(i + 1, 0, ind + "New skill");
+    this.setOutline(lines.join("\n")); this.setState({ focusLine: i + 1 });
+  }
+  addChildOf(i) {
+    const lines = this.outlineText().split("\n"), ind = lines[i].match(/^[\t ]*/)[0];
+    lines.splice(i + 1, 0, ind + "  New skill");
+    this.setOutline(lines.join("\n")); this.setState({ focusLine: i + 1 });
+  }
+  delLine(i) {
+    const lines = this.outlineText().split("\n");
+    const ind = l => l.match(/^[\t ]*/)[0].replace(/\t/g, "  ").length, base = ind(lines[i]);
+    let end = i + 1; while (end < lines.length && lines[end].trim() && ind(lines[end]) > base) end++;
+    lines.splice(i, end - i);
+    this.setOutline(lines.join("\n"));
+  }
+  setOutline(t) { try { localStorage.setItem("resumeTreeOutlineV2", t); } catch (e) {} this.setState({ outline: t }); }
+  fitPage = () => {
+    const vp = document.getElementById("vp");
+    if (!vp || !vp.clientHeight) return;
+    const f = Math.min(1, (vp.clientHeight - 16) / 1050, (vp.clientWidth - 16) / 760);
+    if (f !== this.state.fit) this.setState({ fit: f });
+  };
+  saveCustom(c) { try { localStorage.setItem("resumeTreeCustomV1", JSON.stringify(c)); } catch (e) {} }
+  nearest(x, y) { let best = null, bd = 1e9; const P = this._pos || {}; Object.keys(P).forEach(k => { const d = Math.hypot(P[k].x - x, P[k].y - y); if (d < bd) { bd = d; best = k; } }); return bd <= 54 ? best : null; }
+  labelOf(k) { const p = (this._pos || {})[k]; return p ? p.label : k; }
+  addNode(x, y) {
+    const id = "u" + Date.now().toString(36);
+    const c = { nodes: [...this.state.custom.nodes, { id, name: (this.state.newName || "").trim() || "New node", x, y, cat: this.state.newCat }], links: this.state.custom.links };
+    this.saveCustom(c); this.setState({ custom: c, newName: "" });
+  }
+  addLink(a, b) { const c = { nodes: this.state.custom.nodes, links: [...this.state.custom.links, { a, b }] }; this.saveCustom(c); this.setState({ custom: c }); }
+  delNode(id) { const c = { nodes: this.state.custom.nodes.filter(n => n.id !== id), links: this.state.custom.links.filter(l => l.a !== "u:" + id && l.b !== "u:" + id) }; this.saveCustom(c); this.setState({ custom: c }); }
+  delLink(i) { const c = { nodes: this.state.custom.nodes, links: this.state.custom.links.filter((_, k) => k !== i) }; this.saveCustom(c); this.setState({ custom: c }); }
+  clearCustom() { const c = { nodes: [], links: [] }; this.saveCustom(c); this.setState({ custom: c, linkFrom: null }); }
+  canvasClick(e) {
+    const svg = e.currentTarget;
+    if (this._didDrag) { this._didDrag = false; return; }
+    if (this.state.mode === "add") { const p = this.svgPt(svg, e); this.addNode(p.x, p.y); return; }
+    if (this.state.mode === "link") {
+      const p = this.svgPt(svg, e), hit = this.nearest(p.x, p.y);
+      if (!hit) { this.setState({ linkFrom: null }); return; }
+      if (!this.state.linkFrom) { this.setState({ linkFrom: hit }); return; }
+      if (this.state.linkFrom !== hit) this.addLink(this.state.linkFrom, hit);
+      this.setState({ linkFrom: null }); return;
+    }
+    if (this.state.menu) { this.setState({ menu: null }); return; }
+    if (this.state.selected) this.setState({ selected: null });
+  }
+  componentDidMount() {
+    this._before = () => { this._saved = this.state.selected; this.setState({ selected: null, printing: true, zoom: 1, panX: 0, panY: 0 }); };
+    this._after = () => { this.setState({ selected: this._saved, printing: false }); this.fitPage(); };
+    window.addEventListener("beforeprint", this._before);
+    window.addEventListener("afterprint", this._after);
+    this.fitPage();
+    window.addEventListener("resize", this.fitPage);
+    const vp = document.getElementById("vp");
+    if (vp && window.ResizeObserver) { this._ro = new ResizeObserver(this.fitPage); this._ro.observe(vp); }
+  }
+  componentWillUnmount() { window.removeEventListener("beforeprint", this._before); window.removeEventListener("afterprint", this._after); window.removeEventListener("resize", this.fitPage); if (this._ro) this._ro.disconnect(); }
+
+  eraOf(id) { const t = TIMELINE.find(e => e.projects.includes(id)); return t ? t.time : "Industry"; }
+
+  svgPt(svg, e) { const m = svg.getScreenCTM().inverse(); const p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY; return p.matrixTransform(m); }
+  dragStart(e, key) { if (e.button !== 0) return; e.stopPropagation(); const svg = e.currentTarget.ownerSVGElement || (e.currentTarget.closest && e.currentTarget.closest("svg")); if (!svg) return; const pt = this.svgPt(svg, e); const cur = (this.state.drag || {})[key] || { dx: 0, dy: 0 }; this._drag = { key, sx: pt.x, sy: pt.y, ox: cur.dx, oy: cur.dy, moved: false }; }
+  dragMove(e) { if (!this._drag) return; const pt = this.svgPt(e.currentTarget, e); if (Math.abs(pt.x - this._drag.sx) + Math.abs(pt.y - this._drag.sy) > 2.5) this._drag.moved = true; const dx = this._drag.ox + (pt.x - this._drag.sx), dy = this._drag.oy + (pt.y - this._drag.sy), key = this._drag.key; this.setState(st => ({ drag: { ...st.drag, [key]: { dx, dy } } })); }
+  dragEnd() { if (this._drag) { this._didDrag = this._drag.moved; this._drag = null; if (this._didDrag) { try { localStorage.setItem("resumeTreeDragV1", JSON.stringify(this.state.drag || {})); } catch (e) {} } } }
+  resetPositions() { try { localStorage.removeItem("resumeTreeDragV1"); localStorage.removeItem("resumeTreeLinkStyleV1"); } catch (e) {} this.setState({ drag: {}, linkStyle: {}, menu: null }); }
+  setZoom(z, ox, oy) {
+    z = Math.max(0.4, Math.min(3, z));
+    this.setState(st => {
+      if (ox == null) return { zoom: z };
+      const k = z / st.zoom;
+      return { zoom: z, panX: ox - (ox - st.panX) * k, panY: oy - (oy - st.panY) * k };
+    });
+  }
+  onWheel(e) { if (!e.ctrlKey && Math.abs(e.deltaY) < 1) return; e.preventDefault(); const r = e.currentTarget.getBoundingClientRect(); this.setZoom(this.state.zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12), e.clientX - r.left, e.clientY - r.top); }
+  onPanStart(e) { if (e.button !== 2) return; e.preventDefault(); this._pan = { x: e.clientX, y: e.clientY, px: this.state.panX, py: this.state.panY, id: e.pointerId, el: e.currentTarget }; }
+  onPanMove(e) { if (!this._pan) return; const dx = e.clientX - this._pan.x, dy = e.clientY - this._pan.y; if (!this._pan.cap && Math.abs(dx) + Math.abs(dy) > 3) { this._pan.cap = true; this._pan.el.setPointerCapture && this._pan.el.setPointerCapture(this._pan.id); } this.setState({ panX: this._pan.px + dx, panY: this._pan.py + dy }); }
+  onPanEnd() { this._pan = null; }
+  onContextMenu(e) { e.preventDefault(); }
+  setLinkStyle(id, style) { this.setState(st => { const ls = { ...st.linkStyle }; if (style) ls[id] = style; else delete ls[id]; try { localStorage.setItem("resumeTreeLinkStyleV1", JSON.stringify(ls)); } catch (e) {} return { linkStyle: ls, menu: null }; }); }
+
+  buildViz() {
+    const h = React.createElement;
+    const W = 900, H = 1330, cx = 450;
+    const groundY = 620, trunkTop = 54;
+    const printing = !!this.state.printing, sel = this.state.selected;
+    const leaves = n => (!n.children || !n.children.length) ? 1 : n.children.reduce((s, c) => s + leaves(c), 0);
+    const wrap = (value, max) => {
+      const words = String(value).split(/\s+/), lines = [];
+      let line = "";
+      words.forEach(word => {
+        const next = line ? line + " " + word : word;
+        if (line && next.length > max) { lines.push(line); line = word; } else line = next;
+      });
+      if (line) lines.push(line);
+      return lines.length ? lines : [""];
+    };
+    const TREE = this.visibleTree();
+    const cats = TREE.children || [];
+    const catAng = [1.28, 0.82, 0.34, -0.34, -0.82, -1.28];
+    const colX = [32, 320, 608], colW = 248;
+    const orderedCats = cats.slice().sort((a, b) => leaves(b) - leaves(a));
+    const topCats = orderedCats.slice(0, 3), bottomCats = orderedCats.slice(3);
+    const heightOf = n => {
+      const kids = n.children || [];
+      if (!kids.length) return 1;
+      let total = 0, run = [];
+      const flush = () => {
+        if (!run.length) return;
+        const per = Math.min(3, run.length), slot = (colW - 76) / per;
+        for (let i = 0; i < run.length; i += per) {
+          const row = run.slice(i, i + per);
+          const lines = Math.max(...row.map(c => wrap(c.name, Math.max(7, Math.floor(slot / 7.2))).length));
+          total += Math.max(24, lines * 15.5 + 4) + 3;
+        }
+        run = [];
+      };
+      kids.forEach(child => {
+        if (child.children && child.children.length) { flush(); total += Math.max(22, wrap(child.name, 21).length * 15.5 + 4) + 4 + heightOf(child); }
+        else run.push(child);
+      });
+      flush();
+      return total;
+    };
+    const panelHeights = orderedCats.map(heightOf);
+    const topY = 666, bottomY = topY + Math.max(...panelHeights.slice(0, 3), 250) + 28;
+    const bNodes = [], bLinks = [], spines = [];
+    const addNode = (node, x, y, gen, cat, parent, ax, ay, kind, maxChars) => {
+      node.px = x; node.py = y; node.gen = gen; node.cat = cat; node.parent = parent;
+      node.ax = ax; node.ay = ay; node.kind = kind; node._lines = wrap(node.name, maxChars || (kind === "terminal" ? 8 : 21));
+      node.wgt = leaves(node); node.isLeaf = !(node.children && node.children.length);
+      bNodes.push(node); bLinks.push({ node, src: { px: ax, py: ay }, kind });
+      return node;
+    };
+    const placeChildren = (parent, left, cursor, depth, catName) => {
+      const kids = parent.children || [], run = [];
+      const flush = () => {
+        if (!run.length) return;
+        const per = Math.min(3, run.length), slot = (colW - 76) / per, x0 = left + 62;
+        for (let i = 0; i < run.length; i += per) {
+          const row = run.slice(i, i + per);
+          const lineSets = row.map(c => wrap(c.name, Math.max(7, Math.floor(slot / 7.2))));
+          const rowH = Math.max(24, Math.max(...lineSets.map(a => a.length)) * 15.5 + 4);
+          const y = cursor + rowH / 2;
+          row.forEach((child, j) => {
+            const n = addNode(child, x0 + (j + 0.5) * slot, y, depth + 2, catName, parent, parent.px, parent.py, "terminal", Math.max(7, Math.floor(slot / 7.2)));
+            n._lines = lineSets[j];
+          });
+          cursor += rowH + 3;
+        }
+        run.length = 0;
+      };
+      kids.forEach(child => {
+        if (!(child.children && child.children.length)) { run.push(child); return; }
+        flush();
+        const lines = wrap(child.name, 21), rowH = Math.max(22, lines.length * 15.5 + 4);
+        const gx = left + 48 + Math.min(depth, 2) * 14, gy = cursor + rowH / 2;
+        const group = addNode(child, gx, gy, depth + 1, catName, parent, parent.px, parent.py, "group", 21);
+        group._lines = lines;
+        cursor += rowH + 4;
+        cursor = placeChildren(group, left, cursor, depth + 1, catName);
+      });
+      flush();
+      return cursor;
+    };
+    const categoryLayouts = [];
+    orderedCats.forEach((cat, i) => {
+      const col = i % 3, row = i < 3 ? 0 : 1, left = colX[col], top = row ? bottomY : topY;
+      const colCenter = left + colW / 2, rootX = left + 18, rootY = top + 14;
+      const originX = colCenter, originY = row ? bottomY - 18 : groundY;
+      const root = addNode(cat, rootX, rootY, 1, cat.name, null, originX, originY, "root", 20);
+      const cursor = placeChildren(root, left, top + 38, 0, cat.name);
+      spines.push({ x: left + 36, y1: top + 25, y2: cursor - 3 });
+      categoryLayouts.push({ colCenter, rootX, rootY, originX, originY, top, bottom: cursor });
+    });
+
+    const order = Object.keys(PROJECTS).sort((a, b) => parseInt(PROJECTS[a].year) - parseInt(PROJECTS[b].year));
+    const cardW = 360, cardH = 92, projectDistance = imp => 350 - Math.min(90, Math.max(0, imp - 3) * 18);
+    const briefs = order.map((id, k) => {
+      const left = k % 2 === 0, row = Math.floor(k / 2), x = left ? 28 : 512, y = 64 + row * 104;
+      const tipX = left ? x + cardW + 50 : x - 50, tipY = y + cardH / 2;
+      const dc = (this.state.drag || {})["c:" + id] || { dx: 0, dy: 0 };
+      return { id, left, row, cardX: x + dc.dx, cardY: y + dc.dy, tipX: tipX + dc.dx, tipY: tipY + dc.dy, baseY: groundY - 18 - row * 12, imp: (PROJECTS[id].activeSkills || []).length };
+    });
+
+    const els = [];
+    const screen = { trunk: "#94a3b8", branch: "#64748b", text: "#e2e8f0", muted: "#cbd5e1", dark: "#1e293b" };
+    const ink = printing ? { trunk: "#334155", branch: "#475569", text: "#111827", muted: "#334155", dark: "#111827" } : screen;
+    els.push(h("defs", {},
+      h("filter", { id: "nodeGlow", x: "-80%", y: "-80%", width: "260%", height: "260%" }, h("feGaussianBlur", { stdDeviation: 3, result: "blur" }), h("feMerge", {}, h("feMergeNode", { in: "blur" }), h("feMergeNode", { in: "SourceGraphic" })))
+    ));
+    els.push(h("line", { key: "g", x1: 28, y1: groundY, x2: W - 28, y2: groundY, stroke: printing ? "#cbd5e1" : "#334155", strokeWidth: 1.3, strokeDasharray: "2 7" }));
+    els.push(h("text", { key: "gl1", x: 30, y: groundY - 8, fontFamily: "system-ui,-apple-system,sans-serif", fontSize: 11, fontWeight: 700, fill: ink.muted }, "EXPERIENCE"));
+    els.push(h("text", { key: "gl2", x: W - 30, y: H - 22, textAnchor: "end", fontFamily: "system-ui,-apple-system,sans-serif", fontSize: 11, fontWeight: 700, fill: ink.muted }, "SKILL ROOTS"));
+    els.push(h("path", { key: "trunk", d: "M" + cx + "," + trunkTop + " C" + (cx - 6) + ",220 " + (cx + 6) + ",430 " + cx + "," + groundY, stroke: ink.trunk, strokeWidth: printing ? 10 : 12, fill: "none", strokeLinecap: "round" }));
+    els.push(h("path", { key: "trunkHi", d: "M" + cx + "," + (trunkTop + 3) + " C" + (cx - 3) + ",220 " + (cx + 3) + ",430 " + cx + "," + groundY, stroke: printing ? "#64748b" : "#cbd5e1", strokeWidth: printing ? 3 : 4, strokeOpacity: 0.9, fill: "none", strokeLinecap: "round" }));
+    categoryLayouts.forEach((g, i) => {
+      const d = "M" + g.originX + "," + g.originY + " L" + g.rootX + "," + g.rootY;
+      els.push(h("path", { key: "main" + i, d, stroke: ink.trunk, strokeWidth: printing ? 6 : 8, strokeOpacity: 0.95, fill: "none", strokeLinecap: "round" }));
+    });
+    spines.forEach((s, i) => els.push(h("path", { key: "sp" + i, d: "M" + s.x + "," + s.y1 + " L" + s.x + "," + s.y2, stroke: ink.branch, strokeWidth: printing ? 2.4 : 3.4, strokeOpacity: 0.8, fill: "none", strokeLinecap: "round" })));
+
+    const gStyle = this.props.rootStyle || "curved";
+    const lStyle = this.state.linkStyle || {};
+    const rootD = (s, t, style) => {
+      const sx = s.px, sy = s.py, tx = t.px, ty = t.py;
+      if (style === "straight") return "M" + sx + "," + sy + "L" + tx + "," + ty;
+      if (style === "stepped") { const my = sy + (ty - sy) * 0.5; return "M" + sx + "," + sy + "L" + sx + "," + my + "L" + tx + "," + ty; }
+      const mx = sx + (tx - sx) * 0.42;
+      return "M" + sx + "," + sy + " Q" + mx + "," + sy + " " + tx + "," + ty;
+    };
+    const actSet = sel ? new Set(PROJECTS[sel].activeSkills || []) : null;
+    const hiSet = new Set(), ancSet = new Set();
+    if (actSet) bNodes.forEach(n => { if (n.id && actSet.has(n.id)) { hiSet.add(n); let p = n.parent; while (p && p.px != null) { ancSet.add(p); p = p.parent; } } });
+    const dimB = n => actSet && !hiSet.has(n) && !ancSet.has(n);
+    bLinks.forEach((link, i) => {
+      const n = link.node, s = link.src, t = { px: n.px, py: n.py }, style = lStyle[n.id] || gStyle;
+      const d = rootD(s, t, style), active = hiSet.has(n) || ancSet.has(n), color = CAT[n.cat] || ink.branch;
+      els.push(h("path", { key: "rl" + i, d, stroke: active && !printing ? color : ink.branch, strokeOpacity: dimB(n) ? 0.14 : (active ? 0.92 : 0.68), strokeWidth: n.kind === "root" ? 4.4 : (n.kind === "group" ? 2.5 : 1.5), fill: "none", strokeLinecap: "round" }));
+      els.push(h("path", { key: "rh" + i, d, stroke: "transparent", strokeWidth: 12, fill: "none", style: { cursor: "pointer" }, onClick: e => { e.stopPropagation(); this.setState({ menu: { id: n.id, x: (s.px + n.px) / 2, y: (s.py + n.py) / 2 } }); } }));
+    });
+
+    briefs.forEach((b, i) => {
+      const pj = PROJECTS[b.id], color = printing ? "#334155" : ERA[this.eraOf(b.id)], dir = b.left ? -1 : 1;
+      const bx = cx + dir * (10 + b.row * 12), c1x = bx + dir * 50, c1y = b.baseY - 25 - b.row * 4, c2x = b.tipX - dir * 80, c2y = b.tipY;
+      const branch = "M" + bx + "," + b.baseY + " C" + c1x + "," + c1y + " " + c2x + "," + c2y + " " + b.tipX + "," + b.tipY;
+      els.push(h("path", { key: "br0" + i, d: branch, stroke: ink.trunk, strokeWidth: 5 + b.imp * 0.12, strokeOpacity: 0.7, fill: "none", strokeLinecap: "round" }));
+      els.push(h("path", { key: "br1" + i, d: branch, stroke: color, strokeWidth: 2.2 + b.imp * 0.08, strokeOpacity: 0.95, fill: "none", strokeLinecap: "round" }));
+      const x = b.cardX, y = b.cardY, w = cardW, hh = cardH, mid = y + hh / 2, tip = b.tipX;
+      const d = b.left
+        ? "M" + (x + 18) + "," + y + " Q" + x + "," + y + " " + x + "," + (y + 18) + " L" + x + "," + (y + hh - 18) + " Q" + x + "," + (y + hh) + " " + (x + 18) + "," + (y + hh) + " L" + tip + "," + mid + " Z"
+        : "M" + (x + w - 18) + "," + y + " Q" + (x + w) + "," + y + " " + (x + w) + "," + (y + 18) + " L" + (x + w) + "," + (y + hh - 18) + " Q" + (x + w) + "," + (y + hh) + " " + (x + w - 18) + "," + (y + hh) + " L" + tip + "," + mid + " Z";
+      const vein = "M" + (b.left ? x + 24 : x + w - 24) + "," + mid + " Q" + (b.left ? x + 150 : x + w - 150) + "," + mid + " " + tip + "," + mid;
+      els.push(h("path", { key: "leaf" + i, d, fill: printing ? "#fff" : "#142238", stroke: color, strokeWidth: printing ? 1.5 : 2.2, strokeOpacity: 1 }));
+      els.push(h("path", { key: "vein" + i, d: vein, fill: "none", stroke: color, strokeWidth: printing ? 1 : 1.4, strokeOpacity: 0.55 }));
+      const toggle = e => { e.stopPropagation(); if (this._didDrag) { this._didDrag = false; return; } this.setState(s => ({ selected: s.selected === b.id ? null : b.id })); };
+      const keyToggle = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(e); } };
+      const card = h("div", { tabIndex: 0, role: "button", "aria-label": pj.name + ", " + pj.result, onPointerDown: e => this.dragStart(e, "c:" + b.id), onClick: toggle, onKeyDown: keyToggle,
+        style: { boxSizing: "border-box", width: (cardW - 46) + "px", minHeight: (cardH - 12) + "px", display: "flex", flexDirection: "column", justifyContent: "center", gap: "2px", overflow: "visible", outline: "none", fontFamily: "system-ui,-apple-system,sans-serif", color: printing ? "#111827" : "#e2e8f0", cursor: "grab", touchAction: "none" } },
+        h("div", { style: { display: "flex", alignItems: "baseline", gap: "8px", flexWrap: "wrap" } }, h("span", { style: { font: "700 15.5px/1.12 system-ui", color: printing ? "#111827" : "#f8fafc" } }, pj.name), h("span", { style: { font: "700 13px/1.1 ui-monospace,Menlo,monospace", color: color } }, pj.year)),
+        h("div", { style: { font: "400 14.5px/1.14 system-ui", color: printing ? "#1f2937" : "#cbd5e1" } }, pj.desc),
+        h("div", { style: { font: "600 14.5px/1.14 system-ui", color: printing ? "#14532d" : "#a7f3d0" } }, "\u2713 " + pj.result)
+      );
+      els.push(h("foreignObject", { key: "fo" + i, x: x + 20, y: y + 6, width: cardW - 46, height: cardH - 12, style: { overflow: "visible" } }, card));
+    });
+
+    bNodes.forEach((n, i) => {
+      const active = hiSet.has(n), opacity = dimB(n) ? 0.2 : 1, r = n.kind === "root" ? 6.8 : (n.kind === "group" ? 5.3 : 4.2), fill = printing ? (n.kind === "terminal" ? "#334155" : "#111827") : (CAT[n.cat] || "#7dd3fc");
+      const activate = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); this.setState(s => ({ selected: s.selected === n.id ? null : n.id })); } };
+      els.push(h("circle", { key: "bn" + i, cx: n.px, cy: n.py, r, fill, stroke: active ? (printing ? "#111827" : "#fff") : "none", strokeWidth: active ? 1.5 : 0, opacity, filter: printing ? "none" : "url(#nodeGlow)", tabIndex: 0, role: "button", "aria-label": n.name, onKeyDown: activate, onPointerDown: e => this.dragStart(e, "n:" + n.id), style: { cursor: "grab" } }));
+      const lines = n._lines || [n.name], tx = n.px + 8, ty = n.py - (lines.length - 1) * 7.4;
+      const fillText = printing ? ink.text : (n.kind === "root" || n.kind === "group" ? (CAT[n.cat] || ink.text) : ink.text);
+      els.push(h("text", { key: "bt" + i, x: tx, y: ty, fontFamily: "system-ui,-apple-system,sans-serif", fontSize: n.kind === "terminal" ? 15.5 : 15.5, fontWeight: n.kind === "terminal" ? 500 : 700, fill: fillText, opacity, paintOrder: "stroke", stroke: printing ? "#fff" : "#0f172a", strokeLinejoin: "round", strokeWidth: printing ? 2.5 : 3.2, tabIndex: 0, role: "button", "aria-label": n.name, onKeyDown: activate, onPointerDown: e => this.dragStart(e, "n:" + n.id), style: { cursor: "grab" } }, lines.map((line, j) => h("tspan", { key: j, x: tx, dy: j ? 15.5 : 0 }, line))));
+    });
+
+    const cnodes = (this.state.custom.nodes || []).map(n => { const d = (this.state.drag || {})["u:" + n.id] || { dx: 0, dy: 0 }; return { ...n, px: n.x + d.dx, py: n.y + d.dy }; });
+    this._pos = {};
+    bNodes.forEach(n => { this._pos["n:" + n.id] = { x: n.px, y: n.py, label: n.name }; });
+    briefs.forEach(b => { this._pos["c:" + b.id] = { x: b.tipX, y: b.tipY, label: PROJECTS[b.id].name }; });
+    cnodes.forEach(n => { this._pos["u:" + n.id] = { x: n.px, y: n.py, label: n.name }; });
+    (this.state.custom.links || []).forEach((l, i) => { const a = this._pos[l.a], b = this._pos[l.b]; if (!a || !b) return; const mx = (a.x + b.x) / 2, d = "M" + a.x + "," + a.y + " C" + mx + "," + a.y + " " + mx + "," + b.y + " " + b.x + "," + b.y; els.push(h("path", { key: "cl" + i, d, stroke: printing ? "#64748b" : "#f0abfc", strokeWidth: 1.6, strokeOpacity: 0.85, fill: "none", strokeDasharray: "5 4" })); });
+    cnodes.forEach((n, i) => { const activate = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); this.setState({ selected: "u:" + n.id }); } }; els.push(h("circle", { key: "cn" + i, cx: n.px, cy: n.py, r: 6, fill: CAT[n.cat] || "#f0abfc", tabIndex: 0, role: "button", "aria-label": n.name, onKeyDown: activate, onPointerDown: e => this.dragStart(e, "u:" + n.id) })); });
+
+    return h("svg", { id: "treeSvg", viewBox: "0 0 " + W + " " + H, width: "100%", height: "100%", preserveAspectRatio: "xMidYMid meet", onClick: e => this.canvasClick(e), onPointerMove: e => this.dragMove(e), onPointerUp: () => this.dragEnd(), onPointerLeave: () => this.dragEnd(), style: { display: "block", touchAction: "none" } }, ...els);
+  }
+  plainTree(n) { const out = { name: n.name }; if (n.id) out.id = n.id; if (n.children && n.children.length) out.children = n.children.map(c => this.plainTree(c)); return out; }
+  allSkillIds() { const ids = new Set(); (function walk(n) { if (n.id) ids.add(n.id); (n.children || []).forEach(walk); })(SKILL_DATA); return ids; }
+  persistProjects() { const out = {}; Object.keys(PROJECTS).forEach(id => { const p = PROJECTS[id], d = PROJECT_DEFAULTS[id]; if (["name","year","desc","result","activeSkills"].some(k => JSON.stringify(p[k]) !== JSON.stringify(d[k]))) out[id] = { name:p.name, year:p.year, desc:p.desc, result:p.result, activeSkills:p.activeSkills }; }); try { localStorage.setItem("resumeTreeProjectsV1", JSON.stringify(out)); } catch (e) {} }
+  updateProject(id, field, value) { if (!PROJECTS[id]) return; if (field === "activeSkills") { const known = this.allSkillIds(); value = [...new Set(String(value).split(/[,\s]+/).filter(x => known.has(x)))]; } PROJECTS[id][field] = value; this.persistProjects(); this.setState(s => ({ projectTick: s.projectTick + 1 })); }
+  resetProject(id) { if (!PROJECTS[id] || !PROJECT_DEFAULTS[id]) return; Object.assign(PROJECTS[id], JSON.parse(JSON.stringify(PROJECT_DEFAULTS[id]))); this.persistProjects(); this.setState(s => ({ projectTick: s.projectTick + 1 })); }
+  exportResume() { const payload = { version: 2, exportedAt: new Date().toISOString(), skills: this.plainTree(this.tree()), projects: PROJECTS, editor: { outline: this.state.outline, drag: this.state.drag, linkStyle: this.state.linkStyle, custom: this.state.custom } }; const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob), a = document.createElement("a"); a.href = url; a.download = "resume-tree-" + new Date().toISOString().slice(0, 10) + ".json"; a.click(); setTimeout(() => URL.revokeObjectURL(url), 0); }
+  renderVals() {
+    return {
+      viz: this.buildViz(),
+      exportResume: () => this.exportResume(),
+      projectPanelOpen: this.state.projectPanelOpen,
+      toggleProjectPanel: () => this.setState(s => ({ projectPanelOpen: !s.projectPanelOpen })),
+      projectOptions: Object.keys(PROJECTS).map(id => ({ id, label: PROJECTS[id].year + " - " + PROJECTS[id].name })),
+      selectedProjectId: PROJECTS[this.state.selected] ? this.state.selected : Object.keys(PROJECTS)[0],
+      pickProject: e => this.setState({ selected: e.target.value }),
+      projectEdit: PROJECTS[PROJECTS[this.state.selected] ? this.state.selected : Object.keys(PROJECTS)[0]],
+      projectSkillsText: (PROJECTS[PROJECTS[this.state.selected] ? this.state.selected : Object.keys(PROJECTS)[0]].activeSkills || []).join(", "),
+      onProjectName: e => this.updateProject(PROJECTS[this.state.selected] ? this.state.selected : Object.keys(PROJECTS)[0], "name", e.target.value),
+      onProjectYear: e => this.updateProject(PROJECTS[this.state.selected] ? this.state.selected : Object.keys(PROJECTS)[0], "year", e.target.value),
+      onProjectDesc: e => this.updateProject(PROJECTS[this.state.selected] ? this.state.selected : Object.keys(PROJECTS)[0], "desc", e.target.value),
+      onProjectResult: e => this.updateProject(PROJECTS[this.state.selected] ? this.state.selected : Object.keys(PROJECTS)[0], "result", e.target.value),
+      onProjectSkills: e => this.updateProject(PROJECTS[this.state.selected] ? this.state.selected : Object.keys(PROJECTS)[0], "activeSkills", e.target.value),
+      resetProject: () => this.resetProject(PROJECTS[this.state.selected] ? this.state.selected : Object.keys(PROJECTS)[0]),
+      outlineOpen: this.state.outlineOpen,
+      toggleOutline: () => this.setState(s => ({ outlineOpen: !s.outlineOpen })),
+      outlineText: this.outlineText(),
+      onOutline: e => this.setOutline(e.target.value),
+      resetOutline: () => { try { localStorage.removeItem("resumeTreeOutlineV2"); } catch (e) {} this.setState({ outline: null }); },
+      rows: this.outlineLines().map(l => ({
+        i: l.i, name: l.name, depth: l.depth,
+        pad: (8 + l.depth * 15) + "px",
+        color: ["#f0abfc", "#7dd3fc", "#a7f3d0", "#fde68a", "#cbd5e1", "#94a3b8"][Math.min(l.depth, 5)],
+        size: l.depth === 0 ? "12.5px" : l.depth === 1 ? "11.5px" : "11px",
+        weight: l.depth <= 1 ? 700 : 500,
+        onEdit: e => this.renameLine(l.i, e.target.value),
+        out: () => this.shiftLine(l.i, -1), inn: () => this.shiftLine(l.i, 1),
+        up: () => this.moveLine(l.i, -1), down: () => this.moveLine(l.i, 1),
+        child: () => this.addChildOf(l.i), sib: () => this.addLineAfter(l.i),
+        del: () => this.delLine(l.i)
+      })),
+      depthChips: [1, 2, 3, 4, 5, 99].map(d => ({
+        d, label: d === 99 ? "全部" : "L" + d,
+        onPick: () => this.setState({ maxDepth: d }),
+        bg: this.state.maxDepth === d ? "#f0abfc" : "#0f172a",
+        fg: this.state.maxDepth === d ? "#0b1220" : "#94a3b8"
+      })),
+      nodeCount: this.outlineLines().length,
+      panelOpen: this.state.panelOpen,
+      togglePanel: () => this.setState(s => ({ panelOpen: !s.panelOpen, mode: null, linkFrom: null })),
+      mode: this.state.mode,
+      modeHint: this.state.mode === "add" ? "點畫面任一處放置節點" : this.state.mode === "link" ? (this.state.linkFrom ? "再點第二個節點完成連線（" + this.labelOf(this.state.linkFrom) + "）" : "點靠近第一個節點") : "選擇模式後在畫面上操作",
+      addOn: this.state.mode === "add", linkOn: this.state.mode === "link",
+      setAdd: () => this.setState(s => ({ mode: s.mode === "add" ? null : "add", linkFrom: null })),
+      setLink: () => this.setState(s => ({ mode: s.mode === "link" ? null : "link", linkFrom: null })),
+      newName: this.state.newName,
+      onName: e => this.setState({ newName: e.target.value }),
+      newCat: this.state.newCat,
+      onCat: e => this.setState({ newCat: e.target.value }),
+      cats: Object.keys(CAT),
+      uNodes: (this.state.custom.nodes || []).map(n => ({ id: n.id, name: n.name, color: CAT[n.cat] || "#f0abfc", del: () => this.delNode(n.id) })),
+      uLinks: (this.state.custom.links || []).map((l, i) => ({ i, text: this.labelOf(l.a) + " → " + this.labelOf(l.b), del: () => this.delLink(i) })),
+      clearAll: () => this.clearCustom(),
+      hasSel: !!this.state.selected,
+      hasDrag: Object.keys(this.state.drag || {}).length > 0,
+      clearSel: () => this.setState({ selected: null }),
+      resetPos: () => this.resetPositions(),
+      doPrint: () => window.print(),
+      onWheel: e => this.onWheel(e),
+      onPanStart: e => this.onPanStart(e),
+      onPanMove: e => this.onPanMove(e),
+      onPanEnd: () => this.onPanEnd(),
+      zoomIn: () => this.setZoom(this.state.zoom * 1.15),
+      zoomOut: () => this.setZoom(this.state.zoom / 1.15),
+      zoomReset: () => this.setState({ zoom: 1, panX: 0, panY: 0 }),
+      zoomPct: Math.round(this.state.zoom * 100) + "%",
+      vpStyle: `width:100%;flex:1;min-height:0;overflow:hidden;display:flex;justify-content:center;align-items:center;padding:8px 0;touch-action:none;cursor:${this._pan ? "grabbing" : "grab"}`,
+      fitStyle: (() => { const f = this.state.printing ? 1 : (this.state.fit || 1); return `flex:none;zoom:${f};transform:translate(${this.state.panX}px,${this.state.panY}px) scale(${this.state.zoom});transform-origin:center center;transition:${this._pan ? "none" : "transform .08s"}`; })(),
+      containerStyle: `background:#0f172a;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 0 60px rgba(0,0,0,.6);border-radius:3px;width:760px;height:1050px`
+    };
+  }
+}
+</script>
+
+
+</body></html>

@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="049d1d49-492a-40fa-a965-fa6757131cfb"></script>
+</head>
+<body>
+
+<x-dc>
+<helmet>
+<style id="__page_orient">@page{size:A4 portrait;margin:8mm}</style>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  a{color:#38bdf8;text-decoration:none}
+  a:hover{color:#7dd3fc}
+  #scr::-webkit-scrollbar{width:10px;height:10px}
+  #scr::-webkit-scrollbar-thumb{background:#334155;border-radius:5px}
+  @media print{
+    html,body{background:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    #scr{padding:0 !important;background:#fff !important;display:block !important;overflow:visible !important;height:auto !important}
+    #vp{overflow:visible !important;display:block !important}
+    #toolbar,#editpanel,#outlinepanel,#projectpanel{display:none !important}
+    #a4c{box-shadow:none;border-radius:0}
+  }
+</style>
+<template id="__bundler_thumbnail" data-bg-color="#0f172a">
+  <svg sc-camel-view-box="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#0f172a"></rect>
+    <line x1="600" y1="240" x2="600" y2="560" stroke="#7c8ba5" stroke-width="14" stroke-linecap="round"></line>
+    <path d="M600 330 C520 320 460 290 400 250" stroke="#7c8ba5" stroke-width="9" fill="none" stroke-linecap="round"></path>
+    <path d="M600 380 C690 370 760 340 820 300" stroke="#7c8ba5" stroke-width="9" fill="none" stroke-linecap="round"></path>
+    <ellipse cx="370" cy="240" rx="86" ry="46" fill="#141f33" stroke="#38bdf8" stroke-width="7"></ellipse>
+    <ellipse cx="850" cy="292" rx="86" ry="46" fill="#141f33" stroke="#38bdf8" stroke-width="7"></ellipse>
+    <path d="M600 560 C520 610 470 640 420 700 M600 560 C680 610 730 640 790 700" stroke="#64748b" stroke-width="8" fill="none" stroke-linecap="round"></path>
+    <line x1="180" y1="560" x2="1020" y2="560" stroke="#334155" stroke-width="5" stroke-dasharray="10 24"></line>
+  </svg>
+</template>
+</helmet>
+<div id="scr" style="height:100vh;background:#000;display:flex;flex-direction:column;align-items:center;gap:14px;padding:22px;overflow:hidden;font-family:system-ui,-apple-system,sans-serif">
+  <div id="toolbar" style="display:flex;gap:10px;align-items:center">
+    <button sc-camel-on-click="{{ doPrint }}" style-hover="border-color:#38bdf8;color:#38bdf8" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:7px 14px;border-radius:6px;cursor:pointer;font:600 12px ui-monospace,Menlo,monospace">⎙ Print / PDF</button>
+    <sc-if value="{{ hasSel }}" hint-placeholder-val="{{ true }}">
+      <button sc-camel-on-click="{{ clearSel }}" style-hover="border-color:#38bdf8;color:#38bdf8" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:7px 14px;border-radius:6px;cursor:pointer;font:600 12px ui-monospace,Menlo,monospace">← Clear selection</button>
+    </sc-if>
+    <sc-if value="{{ hasDrag }}" hint-placeholder-val="{{ false }}">
+      <button sc-camel-on-click="{{ resetPos }}" style-hover="border-color:#f87171;color:#f87171" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:7px 14px;border-radius:6px;cursor:pointer;font:600 12px ui-monospace,Menlo,monospace">↺ Reset positions</button>
+    </sc-if>
+    <button sc-camel-on-click="{{ toggleOutline }}" style-hover="border-color:#7dd3fc;color:#7dd3fc" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:7px 14px;border-radius:6px;cursor:pointer;font:600 12px ui-monospace,Menlo,monospace">☰ 技能樹編輯</button>
+    <button sc-camel-on-click="{{ togglePanel }}" style-hover="border-color:#f0abfc;color:#f0abfc" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:7px 14px;border-radius:6px;cursor:pointer;font:600 12px ui-monospace,Menlo,monospace">✎ 編輯面板</button>
+    <button sc-camel-on-click="{{ exportResume }}" style-hover="border-color:#34d399;color:#34d399" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:7px 14px;border-radius:6px;cursor:pointer;font:600 12px ui-monospace,Menlo,monospace">SAVE JSON</button>
+    <button sc-camel-on-click="{{ toggleProjectPanel }}" style-hover="border-color:#fb7185;color:#fb7185" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:7px 14px;border-radius:6px;cursor:pointer;font:600 12px ui-monospace,Menlo,monospace">PROJECT EDITOR</button>
+    <span style="font:500 11px ui-monospace,Menlo,monospace;color:#475569">drag nodes/cards to move · scroll to zoom, drag empty area to pan · click a root line to change its style</span>
+    <div style="display:flex;gap:6px;margin-left:auto;align-items:center">
+      <button sc-camel-on-click="{{ zoomOut }}" style-hover="border-color:#38bdf8;color:#38bdf8" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;width:30px;height:30px;border-radius:6px;cursor:pointer;font:700 15px ui-monospace">−</button>
+      <button sc-camel-on-click="{{ zoomReset }}" style-hover="border-color:#38bdf8;color:#38bdf8" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:0 10px;height:30px;border-radius:6px;cursor:pointer;font:600 11px ui-monospace">{{ zoomPct }}</button>
+      <button sc-camel-on-click="{{ zoomIn }}" style-hover="border-color:#38bdf8;color:#38bdf8" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;width:30px;height:30px;border-radius:6px;cursor:pointer;font:700 15px ui-monospace">+</button>
+    </div>
+  </div>
+  <sc-if value="{{ outlineOpen }}" hint-placeholder-val="{{ false }}">
+  <div id="outlinepanel" style="position:fixed;top:76px;right:18px;z-index:22;width:396px;max-height:calc(100vh - 100px);background:#0b1220;border:1px solid #334155;border-radius:10px;display:flex;flex-direction:column;box-shadow:0 12px 44px rgba(0,0,0,.65)">
+    <div style="display:flex;align-items:center;gap:10px;padding:11px 13px;border-bottom:1px solid #1e293b">
+      <span style="font:700 10px ui-monospace,Menlo,monospace;color:#7dd3fc;letter-spacing:.12em">SKILL TREE</span>
+      <span style="font:500 10.5px ui-monospace;color:#64748b">{{ nodeCount }} nodes</span>
+      <span style="flex:1"></span>
+      <button sc-camel-on-click="{{ resetOutline }}" style="background:none;border:1px solid #334155;color:#94a3b8;padding:4px 9px;border-radius:5px;cursor:pointer;font:600 10px ui-monospace">還原</button>
+      <button sc-camel-on-click="{{ toggleOutline }}" style="background:none;border:none;color:#64748b;cursor:pointer;font:700 14px ui-monospace">✕</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;padding:9px 13px;border-bottom:1px solid #1e293b">
+      <span style="font:600 9.5px ui-monospace;color:#64748b;letter-spacing:.08em">顯示層數</span>
+      <sc-for list="{{ depthChips }}" as="c" hint-placeholder-count="6">
+        <button sc-camel-on-click="{{ c.onPick }}" style="background:{{ c.bg }};color:{{ c.fg }};border:1px solid #334155;border-radius:20px;padding:3px 10px;cursor:pointer;font:700 10px ui-monospace">{{ c.label }}</button>
+      </sc-for>
+    </div>
+    <div style="flex:1;overflow:auto;padding:7px 9px;display:flex;flex-direction:column;gap:2px;min-height:120px">
+      <sc-for list="{{ rows }}" as="r" hint-placeholder-count="8">
+        <div style-hover="background:#131f36" style="display:flex;align-items:center;gap:4px;padding:1px 4px 1px {{ r.pad }};border-radius:5px">
+          <span style="width:5px;height:5px;border-radius:50%;background:{{ r.color }};flex:none"></span>
+          <input value="{{ r.name }}" sc-camel-on-change="{{ r.onEdit }}" style="flex:1;min-width:0;background:transparent;border:none;outline:none;color:{{ r.color }};font-size:{{ r.size }};font-weight:{{ r.weight }};font-family:system-ui;padding:3px 2px">
+          <div style="display:flex;gap:1px;flex:none">
+            <button sc-camel-on-click="{{ r.out }}" title="升一層" style="background:none;border:none;color:#64748b;cursor:pointer;font:700 10px ui-monospace;padding:2px 3px">◀</button>
+            <button sc-camel-on-click="{{ r.inn }}" title="降一層" style="background:none;border:none;color:#64748b;cursor:pointer;font:700 10px ui-monospace;padding:2px 3px">▶</button>
+            <button sc-camel-on-click="{{ r.up }}" title="上移" style="background:none;border:none;color:#64748b;cursor:pointer;font:700 10px ui-monospace;padding:2px 3px">▲</button>
+            <button sc-camel-on-click="{{ r.down }}" title="下移" style="background:none;border:none;color:#64748b;cursor:pointer;font:700 10px ui-monospace;padding:2px 3px">▼</button>
+            <button sc-camel-on-click="{{ r.child }}" title="新增子項" style="background:none;border:none;color:#7dd3fc;cursor:pointer;font:700 11px ui-monospace;padding:2px 3px">＋</button>
+            <button sc-camel-on-click="{{ r.del }}" title="刪除（含子項）" style="background:none;border:none;color:#f87171;cursor:pointer;font:700 10px ui-monospace;padding:2px 3px">✕</button>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="border-top:1px solid #1e293b;padding:9px 11px;display:flex;flex-direction:column;gap:6px">
+      <span style="font:600 9.5px ui-monospace;color:#64748b;letter-spacing:.08em">純文字模式（縮排兩格＝下一層）</span>
+      <textarea value="{{ outlineText }}" sc-camel-on-change="{{ onOutline }}" spellcheck="false" style="height:132px;resize:vertical;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#cbd5e1;padding:8px;font:500 11px/1.5 ui-monospace,Menlo,monospace;outline:none;white-space:pre;overflow:auto"></textarea>
+    </div>
+  </div>
+  </sc-if>
+  <sc-if value="{{ projectPanelOpen }}" hint-placeholder-val="{{ false }}">
+  <div id="projectpanel" style="position:fixed;top:76px;left:282px;z-index:21;width:310px;max-height:calc(100vh - 100px);overflow:auto;background:#0b1220;border:1px solid #334155;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:9px;box-shadow:0 12px 40px rgba(0,0,0,.6)">
+    <div style="display:flex;align-items:center;gap:8px"><span style="font:700 10px ui-monospace;color:#fb7185;letter-spacing:.12em">PROJECT EDITOR</span><span style="flex:1"></span><button sc-camel-on-click="{{ toggleProjectPanel }}" style="background:none;border:none;color:#64748b;cursor:pointer">x</button></div>
+    <sc-raw-select value="{{ selectedProjectId }}" sc-camel-on-change="{{ pickProject }}" style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:7px"><sc-for list="{{ projectOptions }}" as="p" hint-placeholder-count="10"><option value="{{ p.id }}">{{ p.label }}</option></sc-for></sc-raw-select>
+    <input value="{{ projectEdit.name }}" sc-camel-on-change="{{ onProjectName }}" placeholder="Project name" style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:7px">
+    <input value="{{ projectEdit.year }}" sc-camel-on-change="{{ onProjectYear }}" placeholder="Year" style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:7px">
+    <textarea value="{{ projectEdit.desc }}" sc-camel-on-change="{{ onProjectDesc }}" placeholder="Description" style="height:58px;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:7px;resize:vertical"></textarea>
+    <textarea value="{{ projectEdit.result }}" sc-camel-on-change="{{ onProjectResult }}" placeholder="Result / metric" style="height:58px;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#a7f3d0;padding:7px;resize:vertical"></textarea>
+    <textarea value="{{ projectSkillsText }}" sc-camel-on-change="{{ onProjectSkills }}" placeholder="Skill IDs, comma separated" style="height:82px;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#c4b5fd;padding:7px;font:500 10px/1.4 ui-monospace;resize:vertical"></textarea>
+    <div style="font:500 9.5px/1.35 system-ui;color:#64748b">Auto-saved. Unknown skill IDs are ignored.</div>
+    <button sc-camel-on-click="{{ resetProject }}" style="background:#0f172a;border:1px solid #7f1d1d;color:#fca5a5;padding:7px;border-radius:6px;cursor:pointer">Reset selected project</button>
+  </div>
+  </sc-if>
+  <sc-if value="{{ panelOpen }}" hint-placeholder-val="{{ false }}">
+  <div id="editpanel" style="position:fixed;top:76px;left:18px;z-index:20;width:246px;max-height:calc(100vh - 100px);overflow:auto;background:#0b1220;border:1px solid #334155;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px;box-shadow:0 12px 40px rgba(0,0,0,.6)">
+    <div style="font:700 10px ui-monospace,Menlo,monospace;color:#f0abfc;letter-spacing:.12em">MANUAL EDITOR</div>
+    <input value="{{ newName }}" sc-camel-on-change="{{ onName }}" placeholder="節點名稱 node name" style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:7px 9px;font:500 12px system-ui;outline:none">
+    <sc-raw-select value="{{ newCat }}" sc-camel-on-change="{{ onCat }}" style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:7px 9px;font:500 12px system-ui">
+      <sc-for list="{{ cats }}" as="c" hint-placeholder-count="4"><option value="{{ c }}">{{ c }}</option></sc-for>
+    </sc-raw-select>
+    <div style="display:flex;gap:8px">
+      <button sc-camel-on-click="{{ setAdd }}" style="flex:1;background:#0f172a;border:1px solid #334155;color:#cbd5e1;padding:8px;border-radius:6px;cursor:pointer;font:700 11px ui-monospace">＋ 新增節點</button>
+      <button sc-camel-on-click="{{ setLink }}" style="flex:1;background:#0f172a;border:1px solid #334155;color:#cbd5e1;padding:8px;border-radius:6px;cursor:pointer;font:700 11px ui-monospace">／ 拉線</button>
+    </div>
+    <div style="font:500 10.5px/1.4 system-ui;color:#7c8ba5">模式：{{ mode }} · {{ modeHint }}</div>
+    <div style="height:1px;background:#1e293b"></div>
+    <div style="font:700 9.5px ui-monospace;color:#64748b;letter-spacing:.1em">NODES</div>
+    <sc-for list="{{ uNodes }}" as="n" hint-placeholder-count="2">
+      <div style="display:flex;align-items:center;gap:7px;font:500 11px system-ui;color:#cbd5e1">
+        <span style="width:8px;height:8px;border-radius:50%;background:{{ n.color }};flex:none"></span>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ n.name }}</span>
+        <button sc-camel-on-click="{{ n.del }}" style="background:none;border:none;color:#f87171;cursor:pointer;font:700 12px ui-monospace">✕</button>
+      </div>
+    </sc-for>
+    <div style="font:700 9.5px ui-monospace;color:#64748b;letter-spacing:.1em">LINKS</div>
+    <sc-for list="{{ uLinks }}" as="l" hint-placeholder-count="2">
+      <div style="display:flex;align-items:center;gap:7px;font:500 10.5px system-ui;color:#cbd5e1">
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ l.text }}</span>
+        <button sc-camel-on-click="{{ l.del }}" style="background:none;border:none;color:#f87171;cursor:pointer;font:700 12px ui-monospace">✕</button>
+      </div>
+    </sc-for>
+    <button sc-camel-on-click="{{ clearAll }}" style-hover="border-color:#f87171;color:#f87171" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:7px;border-radius:6px;cursor:pointer;font:600 11px ui-monospace">清除全部手動內容</button>
+  </div>
+  </sc-if>
+  <div id="vp" sc-camel-on-wheel="{{ onWheel }}" sc-camel-on-context-menu="{{ onContextMenu }}" sc-camel-on-pointer-down="{{ onPanStart }}" sc-camel-on-pointer-move="{{ onPanMove }}" sc-camel-on-pointer-up="{{ onPanEnd }}" sc-camel-on-pointer-leave="{{ onPanEnd }}" style="{{ vpStyle }}">
+  <div id="a4fit" style="{{ fitStyle }}">
+  <div id="a4c" style="{{ containerStyle }}">
+    <header style="flex:none;background:#1e293b;border-bottom:1px solid #334155;display:flex;justify-content:space-between;align-items:center;gap:20px;padding:12px 24px">
+      <div>
+        <div style="font:700 22px system-ui;color:#fff;letter-spacing:-.5px">Jay Huang</div>
+        <div style="font:500 11px ui-monospace,Menlo,monospace;color:#38bdf8;margin-top:2px">// High-Performance Motor Control &amp; Embedded Systems</div>
+      </div>
+      <div style="display:flex;gap:18px;align-items:center;font:400 10.5px system-ui;color:#94a3b8">
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <div>📧 <a href="mailto:jay.huang@email.com">jay.huang@email.com</a></div>
+          <div>📱 +886 912 345 678</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px;border-left:1px solid #334155;padding-left:18px">
+          <div>📍 Taipei, Taiwan</div>
+          <div>🔗 <a href="#">linkedin.com/in/jayhuang</a></div>
+        </div>
+      </div>
+    </header>
+    <div style="flex:1;position:relative;background:#0f172a;min-height:0">
+      {{ viz }}
+    </div>
+  </div>
+  </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script="" data-props="{&quot;$preview&quot;:{&quot;width&quot;:760,&quot;height&quot;:1050},&quot;rootStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;straight&quot;,&quot;curved&quot;,&quot;stepped&quot;],&quot;default&quot;:&quot;curved&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Roots&quot;},&quot;sortDirection&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;oldest-bottom&quot;,&quot;newest-bottom&quot;],&quot;default&quot;:&quot;oldest-bottom&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Layout&quot;},&quot;showSubskillLabels&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Roots&quot;}}">
+const SKILL_DATA = {
+  name: "Skills Ecosystem", children: [
+    { name: "Embedded Firmware", id: "s_firmware", children: [
+      { name: "Languages", id: "s_language", children: [
+        { name: "Assembly", id: "s_assembly" }, { name: "C", id: "s_c" }
+      ]},
+      { name: "MCU Platforms", id: "s_mcu", children: [
+        { name: "TI-DSP", id: "s_ti_dsp" }, { name: "Renesas", id: "s_renesas" }, { name: "Microchip", id: "s_microchip" }, { name: "ST", id: "s_st" }, { name: "NXP", id: "s_nxp" }
+      ]},
+      { name: "Embedded Functions", id: "s_function", children: [
+        { name: "Embedded System", id: "s_embedded_system_skill" },
+        { name: "Bootloader", id: "s_bootloader" },
+        { name: "Communication", id: "s_communication", children: [
+          { name: "SPI", id: "s_spi" }, { name: "UART", id: "s_uart" },
+          { name: "CAN", id: "s_can", children: [{ name: "ISO15762", id: "s_iso15762" }, { name: "ISO14230", id: "s_iso14230" }] }
+        ]}
+      ]}
+    ]},
+    { name: "Control & Power Conversion", id: "s_controller", children: [
+      { name: "Engine Control", id: "s_enginecontrol" },
+      { name: "DC Bus", id: "s_dc_bus", children: [{ name: "PAM", id: "s_pam" }, { name: "CV/CC", id: "s_cv_cc" }] },
+      { name: "Grid / AC Load", id: "s_grid_ac_load", children: [{ name: "MPPT", id: "s_mppt" }, { name: "PFC", id: "s_pfc" }, { name: "Droop Control", id: "s_droopcontrol" }] },
+      { name: "Motor Control", id: "s_motorcontrol", children: [
+        { name: "Capless", id: "s_capless" }, { name: "Speed Control", id: "s_speed_control" }, { name: "Position Control", id: "s_position_control" },
+        { name: "MTPA", id: "s_mtpa" }, { name: "Flux Weakening", id: "s_fluxweakening" }, { name: "\u03b8v Control", id: "s__v_control" },
+        { name: "FOC", id: "s_foc" }, { name: "V/F", id: "s_v_f" }, { name: "I/F", id: "s_i_f" }
+      ]},
+      { name: "Position Sensing", id: "s_positionsensor", children: [
+        { name: "Sensorless / Back-EMF", id: "s_sensorless" }, { name: "Hall Sensor", id: "s_hallsensor" },
+        { name: "Encoder", id: "s_encoder" }, { name: "Resolver", id: "s_resolver" }
+      ]},
+      { name: "Modulation", id: "s_modulation", children: [
+        { name: "SPWM", id: "s_spwm" }, { name: "SVPWM", id: "s_svpwm" }, { name: "DPWM1", id: "s_dpwm1" },
+        { name: "DPWM Min", id: "s_dpwm_min" }, { name: "Six-Step / One-Pulse", id: "s_sixstep_onepulse" }
+      ]}
+    ]},
+    { name: "Hardware & Test Systems", id: "s_hardware", children: [
+      { name: "Motor Types", id: "s_motor_type", children: [
+        { name: "PMSM", id: "s_pmsm" }, { name: "IM", id: "s_im" }, { name: "Six-Phase PMSM", id: "s_two_segment_pmsm_six_phase_pmsm_" },
+        { name: "PMASynRM", id: "s_pmasynrm" }, { name: "SynRM", id: "s_synrm" }
+      ]},
+      { name: "Power Components", id: "s_component", children: [
+        { name: "IGBT", id: "s_igbt" }, { name: "MOSFET", id: "s_mosfet" }, { name: "GaN", id: "s_gan" }, { name: "SiC", id: "s_sic" }
+      ]},
+      { name: "Hardware Layout", id: "s_layout", children: [{ name: "Peripheral", id: "s_peripheral" }, { name: "Power Stage", id: "s_powerstage" }] },
+      { name: "Dynamometer", id: "s_dyno", children: [
+        { name: "Active Load", id: "s_activeload", children: [{ name: "Yaskawa", id: "s_yaskawa" }, { name: "YL", id: "s_yl" }, { name: "Delta", id: "s_delta" }, { name: "Siemens", id: "s_siemens" }] },
+        { name: "Passive Load (EM Brake)", id: "s_passiveload" },
+        { name: "Shaft Alignment", id: "s_shafts_alignment", children: [{ name: "Dial Indicator", id: "s_dial_indicator" }, { name: "Laser Alignment", id: "s_laser_alignment_tool" }] }
+      ]},
+      { name: "Measurement", id: "s_measurement", children: [
+        { name: "Motor Characteristics (R, L, Ke, Kt, J)", id: "s_motor_characteristic" },
+        { name: "System / Circuit (Bode, FFT)", id: "s_system_circuit_characteristic" }
+      ]}
+    ]},
+    { name: "Modelling & Digital Twin", id: "s_digital_twins", children: [
+      { name: "System Modelling", id: "s_system", children: [{ name: "Ansys Twins", id: "s_ansys_twins" }, { name: "MATLAB", id: "s_matlab" }] },
+      { name: "Circuit Modelling", id: "s_circuit", children: [{ name: "Ansys Q3D", id: "s_ansys_q3d" }, { name: "SIMetrix", id: "s_simetrix" }, { name: "PSpice", id: "s_pspice" }, { name: "PSIM", id: "s_psim" }] }
+    ]},
+    { name: "AI Engineering", id: "s_code", children: [
+      { name: "Analysis Automation", id: "s_quality", children: [
+        { name: "Dynamic Analysis (MATLAB)", id: "s_dynamicanalysis" }, { name: "Python & GUI", id: "s_python" }
+      ]}
+    ]},
+    { name: "Engineering Process & Standards", id: "s_training", children: [
+      { name: "Standards", id: "s_standards", children: [{ name: "ISO 26262", id: "s_iso26262" }, { name: "ASPICE", id: "s_aspice" }] },
+      { name: "Static Analysis (Polyspace)", id: "s_staticanalysis" }
+    ]}
+  ]
+};
+
+const PROJECTS = {
+  s_pmasynrm: { name: "PMASynRM", type: "Research", app: "Motor", year: "2019", tags: ["620V", "4.5kW", "PhD"], desc: "Non-rare-earth PM-assisted SynRM", result: "\u03b8v control cuts torque ripple", activeSkills: ["s_fluxweakening", "s_foc", "s_mtpa", "s_matlab", "s_ansys_twins", "s__v_control"] },
+  s_two_segment_pmsm: { name: "Two-segment PMSM", type: "Research", app: "Motor", year: "2018", tags: ["Six-Phase"], desc: "Fault-tolerant six-phase PMSM", result: "Fault-tolerant six-phase control", activeSkills: ["s_mtpa", "s_fluxweakening", "s_foc", "s_svpwm", "s_two_segment_pmsm_six_phase_pmsm_"] },
+  s_generator: { name: "Generator", type: "Product", app: "Generator", year: "2016", tags: ["3.2kW", "THDv 0.8%"], desc: "Portable low-THD engine generator", result: "THDv below 0.8%", activeSkills: ["s_c", "s_matlab", "s_cv_cc", "s_droopcontrol", "s_pmsm"] },
+  s_pv_inverter: { name: "PV Inverter", type: "Product", app: "Grid", year: "2017", tags: ["Grid-tie"], desc: "Solar PV grid-tie inverter, MPPT", result: "99.5% MPPT efficiency", activeSkills: ["s_c", "s_pfc", "s_mppt"] },
+  s_isg: { name: "ISG Controller", type: "Product", app: "EV", year: "2020", tags: ["100A", "4kW", "12krpm"], desc: "Automotive ISG, CAN diagnostics", result: "Passed 100A at 12krpm", activeSkills: ["s_c", "s_bootloader", "s_iso14230", "s_matlab", "s_cv_cc", "s_iso15762", "s_assembly", "s_pmsm"] },
+  s_range_extended_e_scooter: { name: "Range-Ext E-Scooter", type: "Product", app: "EV", year: "2021", tags: ["3kW"], desc: "Range-extended e-scooter drive", result: "3kW, validated vs Ansys Twins", activeSkills: ["s_powerstage", "s_matlab", "s_peripheral", "s_ansys_twins", "s_cv_cc", "s_assembly", "s_enginecontrol", "s_pmsm"] },
+  s_escooter: { name: "E-Scooter", type: "Product", app: "EV", year: "2022", tags: ["6kW"], desc: "Mass-production 6kW scooter drive", result: "Cost-down on a lower-end MCU", activeSkills: ["s_matlab", "s_powerstage", "s_peripheral", "s_assembly", "s_pmsm"] },
+  s_dynamicboost_dcac: { name: "DynamicBoost + DCAC", type: "Product", app: "EV", year: "2022", tags: ["12kW"], desc: "12kW boost + DC-AC converter", result: "High-density power stage", activeSkills: ["s_powerstage", "s_pmsm", "s_svpwm"] },
+  s_embedded_system: { name: "Embedded System", type: "Product", app: "Infra", year: "2020", tags: ["From-scratch"], desc: "Embedded base layer from scratch", result: "Reusable linker scripts + IVT", activeSkills: ["s_assembly", "s_c", "s_bootloader"] },
+  s_refrigerator: { name: "Refrigerator", type: "Product", app: "Appliance", year: "2023", tags: ["Compressor"], desc: "Sensorless compressor drive", result: "High efficiency at low speed", activeSkills: ["s_c", "s_pmsm", "s_sensorless"] }
+};
+
+const PROJECT_DEFAULTS = JSON.parse(JSON.stringify(PROJECTS));
+const TIMELINE = [
+  { time: "PhD", projects: ["s_pmasynrm", "s_two_segment_pmsm"] },
+  { time: "Master", projects: ["s_generator", "s_pv_inverter"] },
+  { time: "Industry", projects: ["s_isg", "s_range_extended_e_scooter", "s_escooter", "s_dynamicboost_dcac", "s_embedded_system", "s_refrigerator"] }
+];
+
+const CAT = { "Embedded Firmware": "#38bdf8", "Control & Power Conversion": "#fb7185", "Hardware & Test Systems": "#34d399", "Modelling & Digital Twin": "#a78bfa", "AI Engineering": "#f0abfc", "Engineering Process & Standards": "#fbbf24" };
+const ERA = { Master: "#34d399", PhD: "#a78bfa", Industry: "#38bdf8" };
+const RIB = { 2: 0.5, 3: 0.55, 4: 0.6, 5: 0.6, 6: 0.6 };
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    let d = {}, ls = {};
+    try { d = JSON.parse(localStorage.getItem("resumeTreeDragV1") || "{}") || {}; } catch (e) {}
+    try { ls = JSON.parse(localStorage.getItem("resumeTreeLinkStyleV1") || "{}") || {}; } catch (e) {}
+    let cu = { nodes: [], links: [] };
+    try { const j = JSON.parse(localStorage.getItem("resumeTreeCustomV1") || "null"); if (j && j.nodes) cu = j; } catch (e) {}
+    try { const pe = JSON.parse(localStorage.getItem("resumeTreeProjectsV1") || "{}"); Object.keys(pe).forEach(id => { if (PROJECTS[id]) Object.assign(PROJECTS[id], pe[id]); }); } catch (e) {}
+    let outline = null;
+    try {
+      const legacy = localStorage.getItem("resumeTreeOutlineV1");
+      if (legacy && !localStorage.getItem("resumeTreeOutlineV1Backup")) localStorage.setItem("resumeTreeOutlineV1Backup", legacy);
+      outline = localStorage.getItem("resumeTreeOutlineV2");
+    } catch (e) {}
+    this.state = { selected: null, drag: d, linkStyle: ls, menu: null, zoom: 1, panX: 0, panY: 0,
+      mode: null, custom: cu, linkFrom: null, newName: "", newCat: "Embedded Firmware", panelOpen: false, projectPanelOpen: false, projectTick: 0,
+      outline,
+      outlineOpen: false, focusLine: null, maxDepth: 99, fit: 1 };
+  }
+  // ---------- outline text <-> skill tree ----------
+  serializeTree(n) {
+    const out = [];
+    (n.children || []).forEach(function w(c, _i, _a, d) { d = d || 0; out.push("  ".repeat(d) + c.name); (c.children || []).forEach(g => w(g, 0, 0, d + 1)); });
+    return out.join("\n");
+  }
+  slug(s) { return "s_" + s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, ""); }
+  parseOutline(txt) {
+    const root = { name: SKILL_DATA.name, children: [] }, stack = [{ d: -1, node: root }], seen = {};
+    txt.split("\n").forEach(raw => {
+      if (!raw.trim()) return;
+      const ind = raw.match(/^[\t ]*/)[0].replace(/\t/g, "  ").length, d = Math.floor(ind / 2);
+      const name = raw.trim().replace(/^[-•*]\s*/, "");
+      let id = this.slug(name); while (seen[id]) id += "_";
+      seen[id] = 1;
+      const node = { name, id, children: [] };
+      while (stack.length > 1 && stack[stack.length - 1].d >= d) stack.pop();
+      stack[stack.length - 1].node.children.push(node);
+      stack.push({ d, node });
+    });
+    const prune = n => { (n.children || []).forEach(prune); if (n.children && !n.children.length) delete n.children; };
+    prune(root);
+    return root;
+  }
+  tree() {
+    const t = this.state.outline;
+    if (t == null) return SKILL_DATA;
+    if (this._treeCache && this._treeCacheSrc === t) return this._treeCache;
+    let p; try { p = this.parseOutline(t); } catch (e) { return SKILL_DATA; }
+    if (!p.children || !p.children.length) return SKILL_DATA;
+    this._treeCacheSrc = t; this._treeCache = p;
+    return p;
+  }
+  visibleTree() {
+    const md = this.state.maxDepth, src = this.tree();
+    if (md >= 99) return src;
+    const cut = (n, d) => { const o = { name: n.name, id: n.id }; if (n.children && d < md) o.children = n.children.map(c => cut(c, d + 1)); return o; };
+    return cut(src, 0);
+  }
+  outlineText() { return this.state.outline != null ? this.state.outline : this.serializeTree(SKILL_DATA); }
+  outlineLines() {
+    return this.outlineText().split("\n").map((raw, i) => {
+      const ind = raw.match(/^[\t ]*/)[0].replace(/\t/g, "  ").length;
+      return { i, depth: Math.floor(ind / 2), name: raw.trim(), blank: !raw.trim() };
+    }).filter(l => !l.blank);
+  }
+  shiftLine(i, dir) {
+    const lines = this.outlineText().split("\n");
+    if (dir < 0) lines[i] = lines[i].replace(/^ {0,2}/, "");
+    else lines[i] = "  " + lines[i];
+    this.setOutline(lines.join("\n"));
+  }
+  moveLine(i, dir) {
+    const lines = this.outlineText().split("\n"), j = i + dir;
+    if (j < 0 || j >= lines.length) return;
+    const t = lines[i]; lines[i] = lines[j]; lines[j] = t;
+    this.setOutline(lines.join("\n"));
+  }
+  renameLine(i, name) {
+    const lines = this.outlineText().split("\n"), ind = lines[i].match(/^[\t ]*/)[0];
+    lines[i] = ind + name;
+    this.setOutline(lines.join("\n"));
+  }
+  addLineAfter(i) {
+    const lines = this.outlineText().split("\n"), ind = lines[i] ? lines[i].match(/^[\t ]*/)[0] : "";
+    lines.splice(i + 1, 0, ind + "New skill");
+    this.setOutline(lines.join("\n")); this.setState({ focusLine: i + 1 });
+  }
+  addChildOf(i) {
+    const lines = this.outlineText().split("\n"), ind = lines[i].match(/^[\t ]*/)[0];
+    lines.splice(i + 1, 0, ind + "  New skill");
+    this.setOutline(lines.join("\n")); this.setState({ focusLine: i + 1 });
+  }
+  delLine(i) {
+    const lines = this.outlineText().split("\n");
+    const ind = l => l.match(/^[\t ]*/)[0].replace(/\t/g, "  ").length, base = ind(lines[i]);
+    let end = i + 1; while (end < lines.length && lines[end].trim() && ind(lines[end]) > base) end++;
+    lines.splice(i, end - i);
+    this.setOutline(lines.join("\n"));
+  }
+  setOutline(t) { try { localStorage.setItem("resumeTreeOutlineV2", t); } catch (e) {} this.setState({ outline: t }); }
+  fitPage = () => {
+    const vp = document.getElementById("vp");
+    if (!vp || !vp.clientHeight) return;
+    const f = Math.min(1, (vp.clientHeight - 16) / 1050, (vp.clientWidth - 16) / 760);
+    if (f !== this.state.fit) this.setState({ fit: f });
+  };
+  saveCustom(c) { try { localStorage.setItem("resumeTreeCustomV1", JSON.stringify(c)); } catch (e) {} }
+  nearest(x, y) { let best = null, bd = 1e9; const P = this._pos || {}; Object.keys(P).forEach(k => { const d = Math.hypot(P[k].x - x, P[k].y - y); if (d < bd) { bd = d; best = k; } }); return bd <= 54 ? best : null; }
+  labelOf(k) { const p = (this._pos || {})[k]; return p ? p.label : k; }
+  addNode(x, y) {
+    const id = "u" + Date.now().toString(36);
+    const c = { nodes: [...this.state.custom.nodes, { id, name: (this.state.newName || "").trim() || "New node", x, y, cat: this.state.newCat }], links: this.state.custom.links };
+    this.saveCustom(c); this.setState({ custom: c, newName: "" });
+  }
+  addLink(a, b) { const c = { nodes: this.state.custom.nodes, links: [...this.state.custom.links, { a, b }] }; this.saveCustom(c); this.setState({ custom: c }); }
+  delNode(id) { const c = { nodes: this.state.custom.nodes.filter(n => n.id !== id), links: this.state.custom.links.filter(l => l.a !== "u:" + id && l.b !== "u:" + id) }; this.saveCustom(c); this.setState({ custom: c }); }
+  delLink(i) { const c = { nodes: this.state.custom.nodes, links: this.state.custom.links.filter((_, k) => k !== i) }; this.saveCustom(c); this.setState({ custom: c }); }
+  clearCustom() { const c = { nodes: [], links: [] }; this.saveCustom(c); this.setState({ custom: c, linkFrom: null }); }
+  canvasClick(e) {
+    const svg = e.currentTarget;
+    if (this._didDrag) { this._didDrag = false; return; }
+    if (this.state.mode === "add") { const p = this.svgPt(svg, e); this.addNode(p.x, p.y); return; }
+    if (this.state.mode === "link") {
+      const p = this.svgPt(svg, e), hit = this.nearest(p.x, p.y);
+      if (!hit) { this.setState({ linkFrom: null }); return; }
+      if (!this.state.linkFrom) { this.setState({ linkFrom: hit }); return; }
+      if (this.state.linkFrom !== hit) this.addLink(this.state.linkFrom, hit);
+      this.setState({ linkFrom: null }); return;
+    }
+    if (this.state.menu) { this.setState({ menu: null }); return; }
+    if (this.state.selected) this.setState({ selected: null });
+  }
+  componentDidMount() {
+    this._before = () => { this._saved = this.state.selected; this.setState({ selected: null, printing: true, zoom: 1, panX: 0, panY: 0 }); };
+    this._after = () => { this.setState({ selected: this._saved, printing: false }); this.fitPage(); };
+    window.addEventListener("beforeprint", this._before);
+    window.addEventListener("afterprint", this._after);
+    this.fitPage();
+    window.addEventListener("resize", this.fitPage);
+    const vp = document.getElementById("vp");
+    if (vp && window.ResizeObserver) { this._ro = new ResizeObserver(this.fitPage); this._ro.observe(vp); }
+  }
+  componentWillUnmount() { window.removeEventListener("beforeprint", this._before); window.removeEventListener("afterprint", this._after); window.removeEventListener("resize", this.fitPage); if (this._ro) this._ro.disconnect(); }
+
+  eraOf(id) { const t = TIMELINE.find(e => e.projects.includes(id)); return t ? t.time : "Industry"; }
+
+  svgPt(svg, e) { const m = svg.getScreenCTM().inverse(); const p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY; return p.matrixTransform(m); }
+  dragStart(e, key) { if (e.button !== 0) return; e.stopPropagation(); const svg = e.currentTarget.ownerSVGElement || (e.currentTarget.closest && e.currentTarget.closest("svg")); if (!svg) return; const pt = this.svgPt(svg, e); const cur = (this.state.drag || {})[key] || { dx: 0, dy: 0 }; this._drag = { key, sx: pt.x, sy: pt.y, ox: cur.dx, oy: cur.dy, moved: false }; }
+  dragMove(e) { if (!this._drag) return; const pt = this.svgPt(e.currentTarget, e); if (Math.abs(pt.x - this._drag.sx) + Math.abs(pt.y - this._drag.sy) > 2.5) this._drag.moved = true; const dx = this._drag.ox + (pt.x - this._drag.sx), dy = this._drag.oy + (pt.y - this._drag.sy), key = this._drag.key; this.setState(st => ({ drag: { ...st.drag, [key]: { dx, dy } } })); }
+  dragEnd() { if (this._drag) { this._didDrag = this._drag.moved; this._drag = null; if (this._didDrag) { try { localStorage.setItem("resumeTreeDragV1", JSON.stringify(this.state.drag || {})); } catch (e) {} } } }
+  resetPositions() { try { localStorage.removeItem("resumeTreeDragV1"); localStorage.removeItem("resumeTreeLinkStyleV1"); } catch (e) {} this.setState({ drag: {}, linkStyle: {}, menu: null }); }
+  setZoom(z, ox, oy) {
+    z = Math.max(0.4, Math.min(3, z));
+    this.setState(st => {
+      if (ox == null) return { zoom: z };
+      const k = z / st.zoom;
+      return { zoom: z, panX: ox - (ox - st.panX) * k, panY: oy - (oy - st.panY) * k };
+    });
+  }
+  onWheel(e) { if (!e.ctrlKey && Math.abs(e.deltaY) < 1) return; e.preventDefault(); const r = e.currentTarget.getBoundingClientRect(); this.setZoom(this.state.zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12), e.clientX - r.left, e.clientY - r.top); }
+  onPanStart(e) { if (e.button !== 2) return; e.preventDefault(); this._pan = { x: e.clientX, y: e.clientY, px: this.state.panX, py: this.state.panY, id: e.pointerId, el: e.currentTarget }; }
+  onPanMove(e) { if (!this._pan) return; const dx = e.clientX - this._pan.x, dy = e.clientY - this._pan.y; if (!this._pan.cap && Math.abs(dx) + Math.abs(dy) > 3) { this._pan.cap = true; this._pan.el.setPointerCapture && this._pan.el.setPointerCapture(this._pan.id); } this.setState({ panX: this._pan.px + dx, panY: this._pan.py + dy }); }
+  onPanEnd() { this._pan = null; }
+  onContextMenu(e) { e.preventDefault(); }
+  setLinkStyle(id, style) { this.setState(st => { const ls = { ...st.linkStyle }; if (style) ls[id] = style; else delete ls[id]; try { localStorage.setItem("resumeTreeLinkStyleV1", JSON.stringify(ls)); } catch (e) {} return { linkStyle: ls, menu: null }; }); }
+
+  buildViz() {
+    const h = React.createElement;
+    const W = 900, H = 1330, cx = 450;
+    const groundY = 690, spineLen = 470, trunkTop = 58;
+    const topPad = 96, botPad = 742;
+    const sel = this.state.selected;
+    const leaves = n => (!n.children || !n.children.length) ? 1 : n.children.reduce((s, c) => s + leaves(c), 0);
+    const TREE = this.visibleTree();
+    const idName = {}; (function w(n) { if (n.id) idName[n.id] = n.name; (n.children || []).forEach(w); })(TREE);
+
+    // ---------- ROOTS (below ground) — straight angular fishbone, as in the sketch ----------
+    const bNodes = [], bLinks = [];
+    const depthOf = n => { const k = n.children || []; return k.length ? 1 + Math.max(...k.map(depthOf)) : 0; };
+    const bone = (node, sx, sy, ang, len, gen, cat, parent) => {
+      const ex = sx + Math.sin(ang) * len, ey = sy + Math.cos(ang) * len;
+      node.px = ex; node.py = ey; node.ang = ang; node.gen = gen; node.cat = cat; node.parent = parent;
+      node.wgt = leaves(node);   // subtree size → root thickness
+      node.ax = sx; node.ay = sy;              // where this bone springs from
+      node.isLeaf = !(node.children && node.children.length);
+      bNodes.push(node); bLinks.push(node);
+      const kids = node.children || [], nn = kids.length;
+      if (!nn) return;
+      // every child springs from THIS node's own point, fanned around the parent's direction
+      const spread = gen === 1 ? 1.5 : gen === 2 ? 1.22 : 1.0;
+      kids.forEach((c, i) => {
+        const f = nn === 1 ? 0 : (i / (nn - 1)) - 0.5;          // -0.5 … 0.5 across the fan
+        const ca = Math.max(-1.46, Math.min(1.46, ang + f * spread));
+        const sub = len * (gen === 1 ? 0.5 : 0.6) * (0.78 + 0.22 * Math.min(2.6, Math.sqrt(leaves(c))));
+        bone(c, ex, ey, ca, Math.max(30, Math.min(sub, len * 0.78)), gen + 1, cat, node);
+      });
+    };
+    const cats = TREE.children || [];
+    // main roots splay wide and shallow from one point under the trunk, like the drawing
+    const catAng = [1.28, 0.82, 0.34, -0.34, -0.82, -1.28];
+    cats.forEach((c, i) => bone(c, cx, groundY, catAng[i], 190 + 22 * Math.sqrt(leaves(c)), 1, c.name, { px: cx, py: groundY }));
+    // fit the root ball into the below-ground box (true bbox fit, apex stays on the trunk)
+    const bxs = [cx], bys = [groundY];
+    bNodes.forEach(n => { bxs.push(n.px); bys.push(n.py); });
+    const bminX = Math.min(...bxs), bmaxX = Math.max(...bxs), bmaxY = Math.max(...bys);
+    const boxL = 86, boxR = W - 86, boxT = groundY + 6, boxB = H - 96;   // margins leave room for labels
+    const bScale = Math.min((boxR - boxL) / ((bmaxX - bminX) || 1), (boxB - boxT) / ((bmaxY - groundY) || 1), 1);
+    const bOffX = (boxL + boxR) / 2 - ((bminX + bmaxX) / 2) * bScale;
+    const BX = x => x * bScale + bOffX, BY = y => boxT + (y - groundY) * bScale;
+    bNodes.forEach(n => { n.px = BX(n.px); n.py = BY(n.py); n.ax = BX(n.ax); n.ay = BY(n.ay); });
+    const rootBase = { px: BX(cx), py: BY(groundY) };
+    // tie the fan's apex back to the trunk foot
+    bNodes.forEach(n => { if (n.gen === 1) { n.ax = cx; n.ay = groundY; } });
+    // apply saved manual drag offsets — a node's offset cascades to its whole subtree
+    // (bNodes is pre-order, so parents are processed before their children)
+    const drag = this.state.drag || {};
+    bNodes.forEach(n => {
+      const own = drag["n:" + n.id] || { dx: 0, dy: 0 };
+      const pc = (n.parent && n.parent._cum) || { dx: 0, dy: 0 };
+      n._cum = { dx: pc.dx + own.dx, dy: pc.dy + own.dy };
+      n.px += n._cum.dx; n.py += n._cum.dy;
+      n.ax += pc.dx; n.ay += pc.dy;   // attach point rides with the parent
+    });
+    const srcOf = n => ({ px: n.ax, py: n.ay });
+
+    // highlight sets from selected project
+    const actSet = sel ? new Set(PROJECTS[sel].activeSkills || []) : null;
+    const hiSet = new Set(), ancSet = new Set();
+    if (actSet) bNodes.forEach(n => {
+      if (n.id && actSet.has(n.id)) { hiSet.add(n); let p = n.parent; while (p && p.px != null) { ancSet.add(p); p = p.parent; } }
+    });
+    const dimB = n => actSet && !hiSet.has(n) && !ancSet.has(n);
+    const onB = n => hiSet.has(n);
+
+    // ---------- BRANCHES + PROJECT BRIEFS (above ground) ----------
+    let order = Object.keys(PROJECTS).sort((a, b) => parseInt(PROJECTS[a].year) - parseInt(PROJECTS[b].year));
+    if ((this.props.sortDirection || "oldest-bottom") === "newest-bottom") order.reverse();
+    const cardW = 166, cardH = 118, erx = 98, ery = 72;
+    const cardHalfW = cardW / 2, cardMargin = 10;
+    const projectDistance = imp => 350 - Math.min(90, Math.max(0, imp - 3) * 18);
+    const briefs = order.map((id, k) => {
+      const left = k % 2 === 0, r = Math.floor(k / 2), nr = Math.ceil(order.length / 2);
+      const rt = nr > 1 ? r / (nr - 1) : 0;                      // 0 = lowest bough, 1 = highest
+      const baseY = groundY - 16 - rt * (groundY - trunkTop - 124);
+      const rise = 66 + rt * 18;                                 // boughs arc upward
+      const imp = (PROJECTS[id].activeSkills || []).length;
+      // ponytail: skill density alone sets depth; raise the cap if mappings exceed eight skills.
+      const dist = projectDistance(imp);
+      let tipX = left ? cx - dist : cx + dist;
+      tipX = Math.max(cardHalfW + cardMargin, Math.min(W - cardHalfW - cardMargin, tipX));
+      const tipY = Math.max(ery + 12, baseY - rise);
+      const dc = (this.state.drag || {})["c:" + id] || { dx: 0, dy: 0 };
+      return { id, baseY, tipX: tipX + dc.dx, tipY: tipY + dc.dy, left, imp, erx, ery, row: r, rt };
+    });
+
+    const els = [];
+    // ground line
+    els.push(h("line", { key: "g", x1: 30, y1: groundY, x2: W - 30, y2: groundY, stroke: "#334155", strokeWidth: 1.4, strokeDasharray: "2 7", strokeLinecap: "round" }));
+    els.push(h("text", { key: "gl1", x: 34, y: groundY - 8, fontFamily: "ui-monospace,Menlo,monospace", fontSize: 9, fontWeight: 700, letterSpacing: ".12em", fill: "#475569" }, "\u25B2 EXPERIENCE"));
+    els.push(h("text", { key: "gl2", x: W - 34, y: H - 30, textAnchor: "end", fontFamily: "ui-monospace,Menlo,monospace", fontSize: 9, fontWeight: 700, letterSpacing: ".12em", fill: "#475569" }, "SKILL ROOTS \u25BC"));
+
+    // trunk — a bundle of parallel stems rising from the ground, as drawn
+    (function(){
+      const off = [-9, -5.5, -2, 1.5, 5, 8.5];
+      off.forEach((o, s) => {
+        const top = trunkTop + Math.abs(o) * 7;              // inner stems run highest
+        els.push(h("path", { key: "tk" + s, d: `M${cx + o},${groundY}L${cx + o * 0.35},${top}`,
+          stroke: "#7c8ba5", strokeWidth: s === 2 || s === 3 ? 6.5 : 4.2, strokeOpacity: 0.85, fill: "none", strokeLinecap: "round" }));
+      });
+    })();
+
+    // root links — style selectable: curved (organic), straight, or stepped ("progressive")
+    const gStyle = this.props.rootStyle || "curved";
+    const lStyle = this.state.linkStyle || {};
+    const rootD = (s, t, style) => {
+      const sx = s.px, sy = s.py, tx = t.px, ty = t.py;
+      if (style === "straight") return `M${sx},${sy}L${tx},${ty}`;
+      if (style === "stepped") { const my = sy + (ty - sy) * 0.5; return `M${sx},${sy}L${sx},${my}L${tx},${ty}`; }
+      const mx = (sx + tx) / 2, my = (sy + ty) / 2, dx = tx - sx, dy = ty - sy, len = Math.hypot(dx, dy) || 1, off = len * 0.15 * (mx < cx ? -1 : 1);
+      return `M${sx},${sy}Q${mx + (-dy / len) * off},${my + (dx / len) * off} ${tx},${ty}`;
+    };
+    bLinks.forEach((n, i) => {
+      const act = onB(n) || ancSet.has(n), src = srcOf(n);
+      const style = lStyle[n.id] || gStyle;
+      const d = rootD(src, n, style);
+      els.push(h("path", { key: "rl" + i, d, stroke: act ? CAT[n.cat] : "#64748b", strokeOpacity: dimB(n) ? 0.08 : (onB(n) ? 0.9 : (act ? 0.55 : 0.42)), strokeWidth: (0.85 + 1.15 * Math.sqrt(n.wgt || 1)) * (onB(n) ? 1.5 : (act ? 1.2 : 1)), strokeLinecap: "round", fill: "none" }));
+      // invisible fat hit-area → click to pick this link's style
+      els.push(h("path", { key: "rh" + i, d, stroke: "transparent", strokeWidth: 10, fill: "none", style: { cursor: "pointer" }, onClick: e => { e.stopPropagation(); this.setState({ menu: { id: n.id, x: (src.px + n.px) / 2, y: (src.py + n.py) / 2 } }); } }));
+    });
+    // root nodes (draggable)
+    bNodes.forEach((n, i) => {
+      const o = dimB(n) ? 0.1 : 1, big = onB(n);
+      let r = Math.min(7.5, 1.7 + 1.15 * Math.sqrt(n.wgt || 1));
+      if (big) r = Math.max(r, 5.5);
+      els.push(h("circle", { key: "bn" + i, onPointerDown: e => this.dragStart(e, "n:" + n.id), cx: n.px, cy: n.py, r, fill: (big || n.gen <= 2) ? CAT[n.cat] : "#64748b", fillOpacity: big ? 1 : (n.gen <= 2 ? 0.95 : 0.6), stroke: big ? "#fff" : "#0f172a", strokeWidth: big ? 1.5 : 0.8, opacity: o, style: { cursor: "grab" } }));
+    });
+    // root labels
+    const baseT = { fontFamily: "ui-monospace,Menlo,monospace", paintOrder: "stroke", stroke: "#0f172a", strokeLinejoin: "round" };
+    // ---- root labels: show EVERY skill as tidy horizontal text, stacked so none overlap ----
+    const showSub = this.props.showSubskillLabels !== false;
+    const L = [];
+    bNodes.forEach((n, i) => {
+      const showHi = onB(n), anc = ancSet.has(n);
+      if (actSet && !(showHi || anc)) return;          // when focused, only the used chain
+      if (!actSet && !showSub && n.gen >= 3) return;    // tweak: hide deep leaves
+      const fs = n.gen === 1 ? 17 : n.gen === 2 ? 11 : 9;
+      const side = n.px < cx ? -1 : 1;                 // labels sit to the outer side of each node
+      const tw = n.name.length * fs * 0.6, th = fs * 1.15;
+      const pad = 7 + (n.gen === 1 ? 5 : 0);
+      const anchorX = n.px + side * pad;
+      const fill = n.gen === 1 ? CAT[n.cat] : (showHi ? CAT[n.cat] : (n.gen === 2 ? "#cbd5e1" : "#8ea2bf"));
+      const op = actSet ? (showHi ? 1 : 0.5) : 1;
+      L.push({ i, n, fs, tw, side, fill, op, showHi, hx: tw / 2 + 3, hy: th / 2 + 3,
+        cx: anchorX + side * tw / 2, cy: n.py, nodeX: n.px, nodeY: n.py });
+    });
+    // declutter by stacking vertically → tidy columns on each side
+    for (let it = 0; it < 420; it++) {
+      let moved = false;
+      for (let a = 0; a < L.length; a++) for (let b = a + 1; b < L.length; b++) {
+        const A = L[a], B = L[b], dx = B.cx - A.cx, dy = B.cy - A.cy;
+        const ox = (A.hx + B.hx) - Math.abs(dx), oy = (A.hy + B.hy) - Math.abs(dy);
+        if (ox > 0 && oy > 0) { moved = true; const s = (dy < 0 ? -1 : 1) * (oy / 2 + 0.75); A.cy -= s; B.cy += s; }
+      }
+      if (!moved) break;
+    }
+    // deterministic finishing sweep: within each side, enforce minimum vertical pitch
+    const clampT = groundY + 16, clampB = H - 3;
+    L.forEach(o => { o.cy = Math.max(clampT + o.hy, Math.min(clampB - o.hy, o.cy)); });
+    [-1, 1].forEach(sd => {
+      const col = L.filter(o => o.side === sd).sort((a, b) => a.cy - b.cy);
+      const share = (A, B) => Math.abs(B.cx - A.cx) < A.hx + B.hx;
+      for (let i = 1; i < col.length; i++) {                  // push down past EVERY earlier label it shares a band with
+        const B = col[i];
+        for (let j = 0; j < i; j++) {
+          const A = col[j];
+          if (share(A, B)) { const need = A.hy + B.hy + 0.6; if (Math.abs(B.cy - A.cy) < need) B.cy = A.cy + need; }
+        }
+      }
+      for (let i = col.length - 1; i > 0; i--) {              // pull back up off the bottom edge
+        const B = col[i];
+        if (B.cy + B.hy > clampB) B.cy = clampB - B.hy;
+        for (let j = i - 1; j >= 0; j--) {
+          const A = col[j];
+          if (share(A, B)) { const need = A.hy + B.hy + 0.6; if (B.cy - A.cy < need && B.cy - A.cy > -need) A.cy = B.cy - need; }
+        }
+      }
+    });
+    // final passes: resolve vertically, then nudge un-resolvable pairs sideways, and repeat
+    for (let round = 0; round < 5; round++) {
+      L.forEach(o => {                                        // solve inside the real page bounds
+        o.cy = Math.max(groundY + 14 + o.hy, Math.min(H - o.hy - 3, o.cy));
+        o.cx = Math.max(o.hx + 3, Math.min(W - o.hx - 3, o.cx));
+      });
+      for (let it = 0; it < 90; it++) {
+        let moved = false;
+        for (let a = 0; a < L.length; a++) for (let b = a + 1; b < L.length; b++) {
+          const A = L[a], B = L[b], dx = B.cx - A.cx, dy = B.cy - A.cy;
+          const ox = (A.hx + B.hx) - Math.abs(dx), oy = (A.hy + B.hy) - Math.abs(dy);
+          if (ox > 0 && oy > 0) { moved = true; const s = (dy < 0 ? -1 : 1) * (oy / 2 + 0.7); A.cy -= s; B.cy += s; }
+        }
+        if (!moved) break;
+      }
+      let stuck = false;
+      for (let a = 0; a < L.length; a++) for (let b = a + 1; b < L.length; b++) {
+        const A = L[a], B = L[b];
+        const ox = (A.hx + B.hx) - Math.abs(B.cx - A.cx), oy = (A.hy + B.hy) - Math.abs(B.cy - A.cy);
+        if (ox > 0 && oy > 0) {                       // pinned: move the shorter label out of the band
+          stuck = true;
+          const S = A.tw <= B.tw ? A : B, O = S === A ? B : A;
+          S.cx += (S.cx <= O.cx ? -1 : 1) * (ox + 2);
+        }
+      }
+      if (!stuck) break;
+    }
+    L.forEach(o => {
+      const tx = o.cx - o.side * o.tw / 2, ty = o.cy;
+      if (Math.hypot(tx - o.nodeX, ty - o.nodeY) > 13) els.push(h("path", { key: "ld" + o.i, d: `M${o.nodeX},${o.nodeY}L${tx},${ty}`, stroke: "#334155", strokeWidth: 0.6, strokeOpacity: 0.5 * o.op, fill: "none" }));
+      els.push(h("text", { ...baseT, key: "bt" + o.i, x: tx, y: ty, dy: "0.32em", onPointerDown: e => this.dragStart(e, 'n:' + o.n.id), textAnchor: o.side < 0 ? "end" : "start", fontSize: o.showHi ? o.fs + 1 : o.fs, fontWeight: o.n.gen === 1 ? 700 : (o.showHi ? 700 : o.n.gen === 2 ? 600 : 500), fill: o.fill, strokeWidth: o.n.gen === 1 ? 4 : 2.4, opacity: o.op }, o.n.name));
+    });
+
+    // branches + brief cards
+    briefs.forEach((b, i) => {
+      const pj = PROJECTS[b.id], color = ERA[this.eraOf(b.id)], active = sel === b.id, dimC = sel && !active;
+      const dir = b.left ? -1 : 1, bx = cx + dir * (12 + b.row * 16), baseY = b.baseY;
+      // each bough leaves the trunk at a distinct point before sweeping outward
+      // land exactly on the ellipse perimeter, on the side facing the trunk foot
+      const vx = (cx + dir * 6) - b.tipX, vy = baseY - b.tipY;
+      const th = Math.atan2(vy / b.ery, vx / b.erx);
+      const ex = b.tipX + b.erx * Math.cos(th), ey = b.tipY + b.ery * Math.sin(th);
+      // project branches sweep upward and outward like an organic tree.
+      const c1x = bx + dir * Math.max(34, Math.abs(ex - bx) * 0.22), c1y = baseY - 42 - b.rt * 18;
+      const c2x = cx + dir * (Math.abs(ex - cx) * 0.68), c2y = ey - 24;
+      const bw = 3 + b.imp * 0.18;
+      const bd = `M${bx},${baseY} C${c1x},${c1y} ${c2x},${c2y} ${ex},${ey}`;
+      els.push(h("path", { key: "br" + i, d: bd, stroke: active ? color : "#7c8ba5", strokeOpacity: dimC ? 0.18 : (active ? 0.95 : 0.8), strokeWidth: active ? bw + 1 : bw, fill: "none", strokeLinecap: "round" }));
+      // the oval bubble that holds the brief
+      els.push(h("ellipse", { key: "ov" + i, cx: b.tipX, cy: b.tipY, rx: b.erx, ry: b.ery, fill: active ? `${color}1a` : "#141f33", stroke: active ? color : "#48566e", strokeWidth: active ? 2 : 1.3, opacity: dimC ? 0.35 : 1 }));
+
+      const card = h("div", {
+        onPointerDown: e => this.dragStart(e, "c:" + b.id),
+        onClick: e => { e.stopPropagation(); if (this._didDrag) { this._didDrag = false; return; } this.setState(s => ({ selected: s.selected === b.id ? null : b.id })); },
+        style: { boxSizing: "border-box", width: cardW + "px", height: cardH + "px", display: "flex", flexDirection: "column", gap: "2px", alignItems: "center", justifyContent: "center", textAlign: "center",
+          fontFamily: "system-ui,-apple-system,sans-serif", overflow: "hidden",
+          opacity: dimC ? 0.4 : 1, transition: "opacity .15s", touchAction: "none", cursor: "grab" }
+      },
+        h("div", { style: { display: "flex", alignItems: "baseline", gap: "5px", justifyContent: "center", flexWrap: "wrap", maxWidth: (cardW - 10) + "px" } },
+          h("span", { style: { font: `700 ${pj.name.length > 15 ? 13 : 15}px system-ui`, color: active ? "#fff" : "#f1f5f9", lineHeight: 1.15 } }, pj.name),
+          h("span", { style: { font: "700 11px ui-monospace,Menlo,monospace", color, whiteSpace: "nowrap" } }, pj.year)
+        ),
+        h("div", { style: { font: "400 11px/1.3 system-ui", color: "#cbd5e1", textWrap: "pretty", padding: "0 2px" } }, pj.desc),
+        h("div", { style: { font: "600 10.5px/1.28 system-ui", color: "#a7f3d0", padding: "0 2px" } }, `\u2713 ${pj.result}`)
+      );
+      els.push(h("foreignObject", { key: "fo" + i, x: b.tipX - cardW / 2, y: b.tipY - cardH / 2, width: cardW, height: cardH, style: { overflow: "visible" } }, card));
+    });
+
+    // ---------- manual editor: position registry, custom links + nodes ----------
+    this._pos = {};
+    bNodes.forEach(n => { this._pos["n:" + n.id] = { x: n.px, y: n.py, label: n.name || n.id }; });
+    briefs.forEach(b => { this._pos["c:" + b.id] = { x: b.tipX, y: b.tipY, label: PROJECTS[b.id].name }; });
+    const cnodes = (this.state.custom.nodes || []).map(n => {
+      const d = (this.state.drag || {})["u:" + n.id] || { dx: 0, dy: 0 };
+      return { ...n, px: n.x + d.dx, py: n.y + d.dy };
+    });
+    cnodes.forEach(n => { this._pos["u:" + n.id] = { x: n.px, y: n.py, label: n.name }; });
+
+    (this.state.custom.links || []).forEach((l, i) => {
+      const a = this._pos[l.a], b2 = this._pos[l.b];
+      if (!a || !b2) return;
+      const mx = (a.x + b2.x) / 2;
+      els.push(h("path", { key: "cl" + i, d: `M${a.x},${a.y} C${mx},${a.y} ${mx},${b2.y} ${b2.x},${b2.y}`,
+        stroke: "#f0abfc", strokeWidth: 1.6, strokeOpacity: 0.85, fill: "none", strokeLinecap: "round", strokeDasharray: "5 4" }));
+      els.push(h("path", { key: "clh" + i, d: `M${a.x},${a.y} C${mx},${a.y} ${mx},${b2.y} ${b2.x},${b2.y}`,
+        stroke: "transparent", strokeWidth: 12, fill: "none", style: { cursor: "pointer" },
+        onClick: e => { e.stopPropagation(); this.delLink(i); } }));
+    });
+    cnodes.forEach((n, i) => {
+      const isFrom = this.state.linkFrom === "u:" + n.id;
+      els.push(h("circle", { key: "cn" + i, cx: n.px, cy: n.py, r: 6, fill: CAT[n.cat] || "#f0abfc",
+        stroke: isFrom ? "#fff" : "#0f172a", strokeWidth: 2, style: { cursor: "grab" },
+        onPointerDown: e => this.dragStart(e, "u:" + n.id) }));
+      els.push(h("text", { ...baseT, key: "cnt" + i, x: n.px + 10, y: n.py, dy: "0.32em",
+        fontSize: 10, fontWeight: 700, fill: "#f5d0fe", strokeWidth: 2.6 }, n.name));
+    });
+    if (this.state.mode === "link" && this.state.linkFrom && this._pos[this.state.linkFrom]) {
+      const p = this._pos[this.state.linkFrom];
+      els.push(h("circle", { key: "lf", cx: p.x, cy: p.y, r: 11, fill: "none", stroke: "#f0abfc", strokeWidth: 1.6, strokeDasharray: "3 3" }));
+    }
+
+    // per-link style picker menu
+    const menu = this.state.menu;
+    if (menu) {
+      const cur = (this.state.linkStyle || {})[menu.id] || (this.props.rootStyle || "curved");
+      const opts = [["curved", "曲線 Curved"], ["straight", "直線 Straight"], ["stepped", "階梯 Stepped"]];
+      const mw = 132, mh = 30 + opts.length * 26, mx = Math.max(6, Math.min(W - mw - 6, menu.x - mw / 2)), my = Math.max(6, Math.min(H - mh - 6, menu.y + 8));
+      els.push(h("foreignObject", { key: "menu", x: mx, y: my, width: mw, height: mh, style: { overflow: "visible" } },
+        h("div", { onClick: e => e.stopPropagation(), style: { fontFamily: "ui-monospace,Menlo,monospace", background: "#0b1220", border: "1px solid #334155", borderRadius: "8px", padding: "6px", boxShadow: "0 8px 24px rgba(0,0,0,.5)" } },
+          h("div", { style: { font: "700 9px ui-monospace", color: "#64748b", letterSpacing: ".08em", padding: "2px 4px 5px" } }, "LINE STYLE"),
+          ...opts.map(([v, lbl]) => h("div", { key: v, onClick: e => { e.stopPropagation(); this.setLinkStyle(menu.id, v); },
+            style: { display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", padding: "4px 6px", borderRadius: "5px", font: "600 10px system-ui", color: v === cur ? "#38bdf8" : "#cbd5e1", background: v === cur ? "rgba(56,189,248,.12)" : "transparent" } },
+            h("span", { style: { width: "10px" } }, v === cur ? "✓" : ""), lbl))
+        )
+      ));
+    }
+
+    return h("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", height: "100%", preserveAspectRatio: "xMidYMid meet",
+      onClick: e => this.canvasClick(e),
+      onPointerMove: e => this.dragMove(e), onPointerUp: () => this.dragEnd(), onPointerLeave: () => this.dragEnd(),
+      style: { display: "block", touchAction: "none" } }, ...els);
+  }
+
+  allSkillIds() { const ids = new Set(); (function walk(n) { if (n.id) ids.add(n.id); (n.children || []).forEach(walk); })(SKILL_DATA); return ids; }
+  persistProjects() { const out = {}; Object.keys(PROJECTS).forEach(id => { const p = PROJECTS[id], d = PROJECT_DEFAULTS[id]; if (["name","year","desc","result","activeSkills"].some(k => JSON.stringify(p[k]) !== JSON.stringify(d[k]))) out[id] = { name:p.name, year:p.year, desc:p.desc, result:p.result, activeSkills:p.activeSkills }; }); try { localStorage.setItem("resumeTreeProjectsV1", JSON.stringify(out)); } catch (e) {} }
+  updateProject(id, field, value) { if (!PROJECTS[id]) return; if (field === "activeSkills") { const known = this.allSkillIds(); value = [...new Set(String(value).split(/[,\s]+/).filter(x => known.has(x)))]; } PROJECTS[id][field] = value; this.persistProjects(); this.setState(s => ({ projectTick: s.projectTick + 1 })); }
+  resetProject(id) { if (!PROJECTS[id] || !PROJECT_DEFAULTS[id]) return; Object.assign(PROJECTS[id], JSON.parse(JSON.stringify(PROJECT_DEFAULTS[id]))); this.persistProjects(); this.setState(s => ({ projectTick: s.projectTick + 1 })); }
+  exportResume() { const payload = { version: 2, exportedAt: new Date().toISOString(), skills: this.tree(), projects: PROJECTS, editor: { outline: this.state.outline, drag: this.state.drag, linkStyle: this.state.linkStyle, custom: this.state.custom } }; const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob), a = document.createElement("a"); a.href = url; a.download = "resume-tree-" + new Date().toISOString().slice(0, 10) + ".json"; a.click(); setTimeout(() => URL.revokeObjectURL(url), 0); }
+  renderVals() {
+    return {
+      viz: this.buildViz(),
+      exportResume: () => this.exportResume(),
+      projectPanelOpen: this.state.projectPanelOpen,
+      toggleProjectPanel: () => this.setState(s => ({ projectPanelOpen: !s.projectPanelOpen })),
+      projectOptions: Object.keys(PROJECTS).map(id => ({ id, label: PROJECTS[id].year + " - " + PROJECTS[id].name })),
+      selectedProjectId: PROJECTS[this.state.selected] ? this.state.selected : Object.keys(PROJECTS)[0],
+      pickProject: e => this.setState({ selected: e.target.value }),
+      projectEdit: PROJECTS[PROJECTS[this.state.selected] ? this.state.selected : Object.keys(PROJECTS)[0]],
+      projectSkillsText: (PROJECTS[PROJECTS[this.state.selected] ? this.state.selected : Object.keys(PROJECTS)[0]].activeSkills || []).join(", "),
+      onProjectName: e => this.updateProject(PROJECTS[this.state.selected] ? this.state.selected : Object.keys(PROJECTS)[0], "name", e.target.value),
+      onProjectYear: e => this.updateProject(PROJECTS[this.state.selected] ? this.state.selected : Object.keys(PROJECTS)[0], "year", e.target.value),
+      onProjectDesc: e => this.updateProject(PROJECTS[this.state.selected] ? this.state.selected : Object.keys(PROJECTS)[0], "desc", e.target.value),
+      onProjectResult: e => this.updateProject(PROJECTS[this.state.selected] ? this.state.selected : Object.keys(PROJECTS)[0], "result", e.target.value),
+      onProjectSkills: e => this.updateProject(PROJECTS[this.state.selected] ? this.state.selected : Object.keys(PROJECTS)[0], "activeSkills", e.target.value),
+      resetProject: () => this.resetProject(PROJECTS[this.state.selected] ? this.state.selected : Object.keys(PROJECTS)[0]),
+      outlineOpen: this.state.outlineOpen,
+      toggleOutline: () => this.setState(s => ({ outlineOpen: !s.outlineOpen })),
+      outlineText: this.outlineText(),
+      onOutline: e => this.setOutline(e.target.value),
+      resetOutline: () => { try { localStorage.removeItem("resumeTreeOutlineV2"); } catch (e) {} this.setState({ outline: null }); },
+      rows: this.outlineLines().map(l => ({
+        i: l.i, name: l.name, depth: l.depth,
+        pad: (8 + l.depth * 15) + "px",
+        color: ["#f0abfc", "#7dd3fc", "#a7f3d0", "#fde68a", "#cbd5e1", "#94a3b8"][Math.min(l.depth, 5)],
+        size: l.depth === 0 ? "12.5px" : l.depth === 1 ? "11.5px" : "11px",
+        weight: l.depth <= 1 ? 700 : 500,
+        onEdit: e => this.renameLine(l.i, e.target.value),
+        out: () => this.shiftLine(l.i, -1), inn: () => this.shiftLine(l.i, 1),
+        up: () => this.moveLine(l.i, -1), down: () => this.moveLine(l.i, 1),
+        child: () => this.addChildOf(l.i), sib: () => this.addLineAfter(l.i),
+        del: () => this.delLine(l.i)
+      })),
+      depthChips: [1, 2, 3, 4, 5, 99].map(d => ({
+        d, label: d === 99 ? "全部" : "L" + d,
+        onPick: () => this.setState({ maxDepth: d }),
+        bg: this.state.maxDepth === d ? "#f0abfc" : "#0f172a",
+        fg: this.state.maxDepth === d ? "#0b1220" : "#94a3b8"
+      })),
+      nodeCount: this.outlineLines().length,
+      panelOpen: this.state.panelOpen,
+      togglePanel: () => this.setState(s => ({ panelOpen: !s.panelOpen, mode: null, linkFrom: null })),
+      mode: this.state.mode,
+      modeHint: this.state.mode === "add" ? "點畫面任一處放置節點" : this.state.mode === "link" ? (this.state.linkFrom ? "再點第二個節點完成連線（" + this.labelOf(this.state.linkFrom) + "）" : "點靠近第一個節點") : "選擇模式後在畫面上操作",
+      addOn: this.state.mode === "add", linkOn: this.state.mode === "link",
+      setAdd: () => this.setState(s => ({ mode: s.mode === "add" ? null : "add", linkFrom: null })),
+      setLink: () => this.setState(s => ({ mode: s.mode === "link" ? null : "link", linkFrom: null })),
+      newName: this.state.newName,
+      onName: e => this.setState({ newName: e.target.value }),
+      newCat: this.state.newCat,
+      onCat: e => this.setState({ newCat: e.target.value }),
+      cats: Object.keys(CAT),
+      uNodes: (this.state.custom.nodes || []).map(n => ({ id: n.id, name: n.name, color: CAT[n.cat] || "#f0abfc", del: () => this.delNode(n.id) })),
+      uLinks: (this.state.custom.links || []).map((l, i) => ({ i, text: this.labelOf(l.a) + " → " + this.labelOf(l.b), del: () => this.delLink(i) })),
+      clearAll: () => this.clearCustom(),
+      hasSel: !!this.state.selected,
+      hasDrag: Object.keys(this.state.drag || {}).length > 0,
+      clearSel: () => this.setState({ selected: null }),
+      resetPos: () => this.resetPositions(),
+      doPrint: () => window.print(),
+      onWheel: e => this.onWheel(e),
+      onPanStart: e => this.onPanStart(e),
+      onPanMove: e => this.onPanMove(e),
+      onPanEnd: () => this.onPanEnd(),
+      zoomIn: () => this.setZoom(this.state.zoom * 1.15),
+      zoomOut: () => this.setZoom(this.state.zoom / 1.15),
+      zoomReset: () => this.setState({ zoom: 1, panX: 0, panY: 0 }),
+      zoomPct: Math.round(this.state.zoom * 100) + "%",
+      vpStyle: `width:100%;flex:1;min-height:0;overflow:hidden;display:flex;justify-content:center;align-items:center;padding:8px 0;touch-action:none;cursor:${this._pan ? "grabbing" : "grab"}`,
+      fitStyle: (() => { const f = this.state.printing ? 1 : (this.state.fit || 1); return `flex:none;zoom:${f};transform:translate(${this.state.panX}px,${this.state.panY}px) scale(${this.state.zoom});transform-origin:center center;transition:${this._pan ? "none" : "transform .08s"}`; })(),
+      containerStyle: `background:#0f172a;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 0 60px rgba(0,0,0,.6);border-radius:3px;width:760px;height:1050px`
+    };
+  }
+}
+</script>
+
+
+</body></html>

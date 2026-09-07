@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Professional Name — Resume</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 12mm;
+    }
+
+    :root {
+      --ink: #1d2926;
+      --muted: #61706b;
+      --line: #d7dfdc;
+      --accent: #27634f;
+      --paper: #ffffff;
+      --screen: #edf1ef;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { background: var(--screen); }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--screen);
+      font-family: "Segoe UI", Arial, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.3;
+    }
+
+    .screen-tools {
+      display: flex;
+      justify-content: center;
+      padding: 12px;
+    }
+
+    .print-button {
+      border: 1px solid var(--accent);
+      border-radius: 3px;
+      padding: 7px 12px;
+      color: var(--accent);
+      background: var(--paper);
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .paper {
+      width: 186mm;
+      height: 273mm;
+      margin: 0 auto;
+      padding: 0;
+      overflow: hidden;
+      background: var(--paper);
+    }
+
+    .identity {
+      height: 38mm;
+      padding-top: 1mm;
+    }
+
+    .identity h1 {
+      margin: 0;
+      color: var(--ink);
+      font-size: 24pt;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+    }
+
+    .role {
+      margin: 2mm 0 1.5mm;
+      color: var(--accent);
+      font-size: 12pt;
+      font-weight: 600;
+    }
+
+    .summary {
+      max-width: 150mm;
+      margin: 0 0 2mm;
+      color: var(--muted);
+    }
+
+    .contact {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0 5mm;
+      margin: 0;
+      color: var(--muted);
+      font-size: 10.5pt;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    a:hover, a:focus { color: var(--accent); text-decoration: underline; }
+
+    .section {
+      position: relative;
+    }
+
+    .section h2 {
+      display: flex;
+      align-items: center;
+      gap: 3mm;
+      margin: 0 0 4mm;
+      color: var(--accent);
+      font-size: 12.5pt;
+      line-height: 1.1;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .section h2::after {
+      height: 1px;
+      flex: 1;
+      content: "";
+      background: var(--line);
+    }
+
+    .achievements {
+      height: 116mm;
+      padding-top: 6mm;
+    }
+
+    .achievement-list {
+      display: grid;
+      gap: 4mm;
+      margin: 0;
+    }
+
+    .achievement {
+      min-height: 30mm;
+      padding: 0 0 3mm;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .achievement:last-child { border-bottom: 0; }
+
+    .achievement h3 {
+      margin: 0 0 1.5mm;
+      font-size: 11.5pt;
+      line-height: 1.15;
+    }
+
+    .achievement p {
+      margin: 0 0 1.5mm;
+    }
+
+    .achievement p:last-child { margin-bottom: 0; }
+
+    .label {
+      color: var(--accent);
+      font-size: 10.5pt;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .skills {
+      height: 88mm;
+      padding-top: 6mm;
+    }
+
+    .skill-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 5mm 9mm;
+      margin: 0;
+    }
+
+    .skill-group {
+      min-height: 22mm;
+    }
+
+    .skill-group h3 {
+      margin: 0 0 1.5mm;
+      color: var(--ink);
+      font-size: 10.5pt;
+      line-height: 1.15;
+    }
+
+    .skill-group p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 10.5pt;
+    }
+
+    .background {
+      height: 31mm;
+      padding-top: 6mm;
+    }
+
+    .background h2 { margin-bottom: 2mm; }
+
+    .background p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 10.5pt;
+    }
+
+    @media print {
+      html, body { background: var(--paper); }
+      .screen-tools { display: none; }
+      .paper { margin: 0; }
+      a { color: inherit; }
+    }
+
+    @media screen and (max-width: 760px) {
+      .paper {
+        width: calc(100vw - 24px);
+        height: auto;
+        min-height: 0;
+        padding: 24px;
+      }
+      .identity, .achievements, .skills, .background { height: auto; }
+      .achievements, .skills, .background { padding-top: 32px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="screen-tools" aria-label="Screen tools">
+    <button class="print-button" type="button" onclick="window.print()">Print resume</button>
+  </div>
+
+  <main class="paper" aria-label="Resume">
+    <header class="identity">
+      <h1>Professional Name</h1>
+      <p class="role">Target Engineering Role</p>
+      <p class="summary">One sentence describing the engineering value offered and the kind of problems this professional helps solve.</p>
+      <p class="contact">
+        <a href="mailto:email@example.com">email@example.com</a>
+        <span>LinkedIn: URL placeholder</span>
+        <span>Location placeholder</span>
+      </p>
+    </header>
+
+    <section class="section achievements" aria-labelledby="achievements-title">
+      <h2 id="achievements-title">Technical achievements</h2>
+      <div class="achievement-list">
+        <article class="achievement">
+          <h3>Achievement placeholder one</h3>
+          <p><span class="label">Contribution</span> Replace with a concise description of the engineering problem and the personal contribution, using verified facts only.</p>
+          <p><span class="label">Result</span> Replace with a publishable outcome or verified metric when available.</p>
+        </article>
+        <article class="achievement">
+          <h3>Achievement placeholder two</h3>
+          <p><span class="label">Contribution</span> Describe the technical challenge addressed and the work personally completed.</p>
+          <p><span class="label">Result</span> Describe the resulting improvement, delivery, or learning without invented claims.</p>
+        </article>
+        <article class="achievement">
+          <h3>Achievement placeholder three</h3>
+          <p><span class="label">Contribution</span> Summarize the engineering decision, build, analysis, or validation performed.</p>
+          <p><span class="label">Result</span> Add a verified result or a short factual outcome after review.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section skills" aria-labelledby="skills-title">
+      <h2 id="skills-title">Skills</h2>
+      <div class="skill-grid">
+        <section class="skill-group" aria-labelledby="skill-embedded">
+          <h3 id="skill-embedded">Embedded Firmware</h3>
+          <p>C · CAN · Bootloader · UART</p>
+        </section>
+        <section class="skill-group" aria-labelledby="skill-control">
+          <h3 id="skill-control">Control &amp; Power Conversion</h3>
+          <p>FOC · SVPWM · MPPT · Speed Control</p>
+        </section>
+        <section class="skill-group" aria-labelledby="skill-hardware">
+          <h3 id="skill-hardware">Hardware &amp; Test Systems</h3>
+          <p>PMSM · MOSFET · Dynamometer · System / Circuit (Bode, FFT)</p>
+        </section>
+        <section class="skill-group" aria-labelledby="skill-model">
+          <h3 id="skill-model">Modelling &amp; Digital Twin</h3>
+          <p>MATLAB · Ansys Twins · PSIM · PSpice</p>
+        </section>
+        <section class="skill-group" aria-labelledby="skill-ai">
+          <h3 id="skill-ai">AI Engineering</h3>
+          <p>Analysis Automation · Dynamic Analysis (MATLAB) · Python &amp; GUI</p>
+        </section>
+        <section class="skill-group" aria-labelledby="skill-process">
+          <h3 id="skill-process">Engineering Process &amp; Standards</h3>
+          <p>ISO 26262 · ASPICE · Static Analysis (Polyspace)</p>
+        </section>
+      </div>
+    </section>
+
+    <footer class="section background" aria-labelledby="background-title">
+      <h2 id="background-title">Background</h2>
+      <p>Professional experience placeholder · Education placeholder · Dates retained after factual review.</p>
+    </footer>
+  </main>
+</body>
+</html>

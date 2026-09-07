@@ -1,0 +1,138 @@
+  buildViz() {
+    const h = React.createElement, W = 900, H = 1260, cx = 450, groundY = 568;
+    const printing = !!this.state.printing, sel = printing ? null : this.state.selected;
+    const font = 'Arial, sans-serif', fs = 15.5, lineH = 19;
+    const measure = this._measure || (this._measure = document.createElement('canvas').getContext('2d'));
+    const widthOf = (s, bold = false) => { measure.font = (bold ? '700 ' : '400 ') + fs + 'px Arial'; return measure.measureText(s).width; };
+    const wrap = (s, width, bold = false) => {
+      const lines = []; let line = '';
+      String(s).split(/\s+/).forEach(word => {
+        if (line && widthOf(line + ' ' + word, bold) > width) { lines.push(line); line = ''; }
+        line += (line ? ' ' : '') + word;
+      });
+      if (line) lines.push(line);
+      return lines;
+    };
+    const bNodes = [], bLinks = [], TREE = this.visibleTree();
+    // ponytail: three columns fit this A4 inventory; added content needs a fresh print-fit check.
+    const colY = [607, 607, 607];
+    const add = (data, x, y, parent, cat, kind, lines) => {
+      // Layout metadata belongs to copies: parent links must never pollute exported skill data.
+      const n = { ...data, px: x, py: y, parent, cat, kind, lines, gen: parent ? parent.gen + 1 : 1 };
+      bNodes.push(n); bLinks.push(n); return n;
+    };
+    const place = (parent, left, right, start, depth) => {
+      let y = start, run = [];
+      const flush = () => {
+        if (!run.length) return;
+        const x0 = left + 30 + Math.min(depth, 2) * 10;
+        let row = [], x = x0, rowHeight = lineH;
+        const finish = () => {
+          row.forEach(item => add(item.data, item.x, y + 12, parent, parent.cat, 'terminal', item.lines));
+          y += rowHeight + 3; row = []; x = x0; rowHeight = lineH;
+        };
+        run.forEach(data => {
+          const max = right - x0 - 10, lines = wrap(data.name, max);
+          const width = Math.max(...lines.map(s => widthOf(s))) + 23;
+          if (row.length && x + width > right) finish();
+          row.push({ data, x, lines }); x += width;
+          rowHeight = Math.max(rowHeight, lines.length * lineH);
+        });
+        if (row.length) finish(); run = [];
+      };
+      (parent.children || []).forEach(data => {
+        if (!(data.children || []).length) { run.push(data); return; }
+        flush();
+        const x = left + 16 + Math.min(depth, 2) * 10, lines = wrap(data.name, right - x - 10, true);
+        const n = add(data, x, y + 12, parent, parent.cat, 'group', lines);
+        y = place(n, left, right, y + lines.length * lineH + 5, depth + 1);
+        y += 3;
+      });
+      flush(); return y;
+    };
+    (TREE.children || []).forEach((cat, i) => {
+      const col = i % 3, left = 24 + col * 294, right = left + 274, top = colY[col];
+      const lines = wrap(cat.name, right - left - 22, true);
+      const n = add(cat, left + 6, top, null, cat.name, 'root', lines);
+      n.spineX = left - 2;
+      colY[col] = place(n, left, right, top + lines.length * lineH + 9, 0) + 24;
+    });
+    const drag = this.state.drag || {};
+    bNodes.forEach(n => {
+      const own = drag['n:' + n.id] || { dx: 0, dy: 0 }, pc = n.parent?._cum || { dx: 0, dy: 0 };
+      n._cum = { dx: pc.dx + own.dx, dy: pc.dy + own.dy };
+      n.px += n._cum.dx; n.py += n._cum.dy;
+    });
+    const actSet = PROJECTS[sel] ? new Set(PROJECTS[sel].activeSkills || []) : null;
+    const hiSet = new Set(), ancSet = new Set();
+    if (actSet) bNodes.forEach(n => { if (actSet.has(n.id)) { hiSet.add(n); let p = n.parent; while (p) { ancSet.add(p); p = p.parent; } } });
+    const dimB = n => actSet && !hiSet.has(n) && !ancSet.has(n);
+    let order = Object.keys(PROJECTS).sort((a, b) => parseInt(PROJECTS[a].year) - parseInt(PROJECTS[b].year));
+    if ((this.props.sortDirection || 'oldest-bottom') === 'newest-bottom') order.reverse();
+    const cardW = 352, cardH = 98;
+    const briefs = order.map((id, k) => {
+      const left = k % 2 === 0, row = Math.ceil(order.length / 2) - 1 - Math.floor(k / 2);
+      const dc = drag['c:' + id] || { dx: 0, dy: 0 }, x = (left ? 22 : 526) + dc.dx, y = 15 + row * 102 + dc.dy;
+      return { id, left, row, x, y, tipX: x + cardW / 2, tipY: y + cardH / 2, baseY: 15 + row * 102 + 108 };
+    });
+    const els = [], ink = printing ? '#253c36' : '#77978c';
+    const baseT = { fontFamily: font, paintOrder: 'stroke', stroke: printing ? '#fff' : '#0f172a', strokeLinejoin: 'round' };
+    els.push(h('defs', {}, h('filter', { id: 'nodeGlow', x: '-100%', y: '-100%', width: '300%', height: '300%' }, h('feGaussianBlur', { stdDeviation: 2.2, result: 'blur' }), h('feMerge', {}, h('feMergeNode', { in: 'blur' }), h('feMergeNode', { in: 'SourceGraphic' })))));
+    els.push(h('path', { className: 'tree-trunk', key: 'trunk', d: 'M436,568 Q445,350 450,8 Q455,350 464,568 Z', fill: ink }));
+    els.push(h('path', { key: 'bark', d: 'M450,560 Q445,350 450,95', fill: 'none', stroke: printing ? '#fff' : '#adc5b9', strokeWidth: 1.8, opacity: 0.6 }));
+    els.push(h('line', { key: 'ground', x1: 24, x2: 876, y1: groundY, y2: groundY, stroke: ink, strokeWidth: 1.1 }));
+    els.push(h('text', { key: 'section', x: 24, y: groundY - 12, fontFamily: font, fontSize: 12, fontWeight: 700, letterSpacing: 1.5, fill: printing ? '#334155' : '#b0c7bf' }, 'PROJECT CANOPY'));
+    els.push(h('text', { key: 'roots', x: 876, y: groundY - 12, textAnchor: 'end', fontFamily: font, fontSize: 12, fontWeight: 700, letterSpacing: 1.5, fill: printing ? '#334155' : '#b0c7bf' }, 'SKILL ROOTS'));
+    const gStyle = this.props.rootStyle || 'straight', lStyle = this.state.linkStyle || {};
+    bLinks.forEach((n, i) => {
+      const p = n.parent, sx = p ? p.px : cx, sy = p ? p.py + 6 : groundY, style = lStyle[n.id] || gStyle;
+      let d;
+      if (!p) {
+        if (style === 'curved') d = `M${cx},${groundY} C${cx},590 ${n.spineX},586 ${n.spineX},594 L${n.spineX},${n.py - 13} Q${n.spineX},${n.py} ${n.px},${n.py}`;
+        else if (style === 'stepped') d = `M${cx},${groundY} L${cx},586 L${n.spineX},586 L${n.spineX},${n.py} L${n.px},${n.py}`;
+        else d = `M${cx},${groundY} L${n.spineX},594 L${n.spineX},${n.py - 13} L${n.px},${n.py}`;
+      }
+      else {
+        const ribY = n.py - 14;
+        if (style === 'curved') d = `M${sx},${sy} L${sx},${ribY - 6} Q${sx},${ribY} ${sx + 6},${ribY} L${n.px - 9},${ribY} Q${n.px},${ribY} ${n.px},${n.py}`;
+        else if (style === 'stepped') d = `M${sx},${sy} L${sx},${n.py} L${n.px},${n.py}`;
+        else d = `M${sx},${sy} L${sx},${ribY} L${n.px - 9},${ribY} L${n.px},${n.py}`;
+      }
+      els.push(h('path', { key: 'rl' + i, className: 'root-link', d, stroke: printing ? '#65786f' : n.kind === 'root' ? ink : CAT[n.cat] || ink, strokeWidth: n.kind === 'root' ? 2.6 : 1.15, opacity: dimB(n) ? 0.12 : n.kind === 'root' ? 0.8 : 0.46, fill: 'none', strokeLinecap: 'round' }));
+      els.push(h('path', { key: 'rh' + i, className: 'root-hit', 'data-skill-id': n.id, d, stroke: 'transparent', strokeWidth: 9, fill: 'none', style: { cursor: 'pointer' }, onClick: e => { if (this.state.mode) return; e.stopPropagation(); this.setState({ menu: { id: n.id, x: n.px, y: n.py } }); } }));
+    });
+    briefs.forEach((b, i) => {
+      const pj = PROJECTS[b.id], active = sel === b.id, dim = sel && !active, dir = b.left ? -1 : 1;
+      const color = printing ? '#326354' : active ? ERA[this.eraOf(b.id)] : '#5eab94';
+      const x = b.x, y = b.y, w = cardW, ex = b.left ? x + w : x, ey = y + 48;
+      const branch = `M450,${b.baseY} C${450 + dir * 14},${b.baseY - 32} ${ex - dir * 26},${ey + 12} ${ex},${ey}`;
+      els.push(h('path', { key: 'br' + i, className: 'project-branch', d: branch, stroke: ink, strokeWidth: 5.5 - b.row * 0.25, strokeLinecap: 'round', fill: 'none', opacity: dim ? 0.2 : 1 }));
+      const d = b.left
+        ? `M${x},${y} C${x + 100},${y + 10} ${x + w},${y - 22} ${x + w},${y + 48} C${x + w},${y + 117} ${x + 150},${y + 109} ${x + 61},${y + 86} Q${x + 20},${y + 70} ${x},${y} Z`
+        : `M${x + w},${y} C${x + w - 100},${y + 10} ${x},${y - 22} ${x},${y + 48} C${x},${y + 117} ${x + w - 150},${y + 109} ${x + w - 61},${y + 86} Q${x + w - 20},${y + 70} ${x + w},${y} Z`;
+      els.push(h('path', { key: 'leaf' + i, className: 'project-leaf', d, fill: printing ? '#fff' : active ? '#173a3c' : '#132c30', stroke: color, strokeWidth: active ? 2.5 : 1.5, opacity: dim ? 0.35 : 1 }));
+      // Veins stay in the pointed tip, clear of the achievement text.
+      const vein = b.left ? `M${x + 18},${y + 14} Q${x + 26},${y + 40} ${x + 46},${y + 63}` : `M${x + w - 18},${y + 14} Q${x + w - 26},${y + 40} ${x + w - 46},${y + 63}`;
+      els.push(h('path', { key: 'vein' + i, className: 'leaf-vein', d: vein, stroke: color, strokeWidth: 0.8, opacity: dim ? 0.12 : 0.45, fill: 'none' }));
+      const toggle = e => { e.stopPropagation(); if (this._didDrag) { this._didDrag = false; return; } this.setState(s => ({ selected: s.selected === b.id ? null : b.id, menu: null })); };
+      const textX = b.left ? x + 57 : x + 27;
+      const card = h('div', { className: 'project-card', 'data-project-id': b.id, role: 'button', tabIndex: 0, 'aria-pressed': active, 'aria-label': pj.name + ': ' + pj.result,
+        onPointerDown: e => this.dragStart(e, 'c:' + b.id), onClick: toggle, onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(e); } },
+        style: { width: '268px', height: '71px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '3px', color: printing ? '#172d27' : '#eaf5ef', fontFamily: font, opacity: dim ? 0.35 : 1, cursor: 'grab', touchAction: 'none' } },
+        h('div', { style: { display: 'flex', alignItems: 'baseline', gap: '7px', flexWrap: 'wrap', font: '700 16px/1.08 Arial,sans-serif' } }, pj.name, h('span', { style: { font: '400 14px Arial,sans-serif', color: printing ? '#4b635a' : '#9ac7b7' } }, pj.year)),
+        h('div', { style: { font: '400 15.5px/1.12 Arial,sans-serif', color: printing ? '#334155' : '#c3d5ce' } }, pj.desc),
+        h('div', { style: { font: '700 15.5px/1.12 Arial,sans-serif', color: printing ? '#214e3f' : '#b1ebd0' } }, pj.result)
+      );
+      els.push(h('foreignObject', { key: 'fo' + i, x: textX, y: y + 12, width: 268, height: 71, style: { overflow: 'visible' } }, card));
+    });
+    bNodes.forEach((n, i) => {
+      const opacity = dimB(n) ? 0.23 : 1, color = printing ? '#20392f' : CAT[n.cat] || '#cbd5e1';
+      const open = e => { if (this.state.mode) return; e.stopPropagation(); if (this._didDrag) { this._didDrag = false; return; } const keyboard = e.type === 'keydown'; this.setState({ menu: { id: n.id, x: n.px, y: n.py } }, () => { if (keyboard) requestAnimationFrame(() => document.querySelector('.branch-menu button')?.focus()); }); };
+      const keyboard = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(e); } };
+      els.push(h('circle', { key: 'bn' + i, className: 'skill-dot', 'data-skill-id': n.id, cx: n.px, cy: n.py, r: n.kind === 'root' ? 5 : n.kind === 'group' ? 3.6 : 2.6, fill: color, opacity, filter: printing ? 'none' : 'url(#nodeGlow)', onPointerDown: e => this.dragStart(e, 'n:' + n.id), onClick: open, style: { cursor: 'grab' } }));
+      if (!printing && this.props.showSubskillLabels === false && n.gen >= 3) return;
+      els.push(h('text', { ...baseT, key: 'bt' + i, className: 'skill-label', 'data-skill-id': n.id, x: n.px + 9, y: n.py + 5, fontSize: fs, fontWeight: n.kind === 'terminal' ? 400 : 700, fill: n.kind === 'terminal' ? printing ? '#24352e' : '#e0ebe5' : color, strokeWidth: 2, opacity, role: 'button', tabIndex: 0, 'aria-label': n.name + ': branch style', onKeyDown: keyboard, onClick: open, onPointerDown: e => this.dragStart(e, 'n:' + n.id), style: { cursor: 'grab' } }, n.lines.map((line, j) => h('tspan', { key: j, x: n.px + 9, dy: j ? lineH : 0 }, line))));
+    });
+    // ORIGINAL_EDITOR
+    return h('svg', { id: 'treeSvg', viewBox: `0 0 ${W} ${H}`, width: '100%', height: '100%', preserveAspectRatio: 'xMidYMid meet', onClick: e => this.canvasClick(e), onPointerMove: e => this.dragMove(e), onPointerUp: () => this.dragEnd(), onPointerLeave: () => this.dragEnd(), style: { display: 'block', touchAction: 'none' } }, ...els);
+  }
