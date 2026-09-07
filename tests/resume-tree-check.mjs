@@ -65,7 +65,10 @@ if (mode === "--organic-tree") {
 }
 
 if (mode === "--branch-spread") {
-  assert.ok(page.includes('bx = cx + dir * (12 + r * 16)'), "project boughs must leave the trunk at spread positions");
+  assert.ok(page.includes('row: r, rt }'), "project layout metadata must carry branch row values");
+  assert.ok(page.includes('12 + b.row * 16'), "branch spread must use stored project row");
+  assert.ok(page.includes('42 - b.rt * 18'), "branch rise must use stored project ratio");
+  assert.ok(page.includes('bx = cx + dir * (12 + b.row * 16)'), "project boughs must leave the trunk at spread positions");
   assert.ok(page.includes('Math.max(34, Math.abs(ex - bx) * 0.22)'), "first branch control point must spread outward");
   assert.ok(page.includes('Math.abs(ex - cx) * 0.68'), "second branch control point must carry the outward sweep");
   console.log("resume tree branch-spread checks passed");
