@@ -1,5 +1,5 @@
 repo: HTML_Resume
-analyzed_commit: 8f7d475
+analyzed_commit: 6b8c054
 kb_version: 3
 generated_by: sw-ai-wiki
 updated: 2026-08-23
@@ -10,12 +10,12 @@ structural_backend:
   provider: codebase-memory-mcp
   mode: advisory
   project: HTML_Resume
-  checked_at_commit: 8f7d475
-  status: unavailable
+  checked_at_commit: 6b8c054
+  status: current
 indexes:
   retrieval: retrieval-index.jsonl
   symbols: symbol-index.jsonl
   relations: relation-index.jsonl
   changes: change-index.jsonl
 counts: { cards: 6, stale: 0, conflicted: 0 }
-last_update: "2455e18..8f7d475: resume tree renderer, editor, interaction, layout, and regression coverage recorded"
+last_update: "a55bbf8..6b8c054: fixed project branch row metadata scope; runtime load verified"

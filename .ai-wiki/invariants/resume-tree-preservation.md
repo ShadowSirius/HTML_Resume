@@ -2,7 +2,7 @@
 id: invariant.resume_tree.preservation
 type: invariant
 status: verified
-source_commit: 8f7d475
+source_commit: 6b8c054
 source_symbols:
   - tests/resume-tree-check.mjs::content assertions
   - rs_portrait.html::Component.constructor

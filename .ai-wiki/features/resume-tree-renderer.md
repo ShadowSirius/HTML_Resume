@@ -2,7 +2,7 @@
 id: feature.resume_tree.renderer
 type: feature
 status: verified
-source_commit: 8f7d475
+source_commit: 6b8c054
 source_symbols:
   - rs_portrait.html::Component.buildViz
   - rs_portrait.html::Component.visibleTree

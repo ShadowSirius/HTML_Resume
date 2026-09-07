@@ -2,7 +2,7 @@
 id: test.resume_tree.regression
 type: test
 status: verified
-source_commit: 8f7d475
+source_commit: 6b8c054
 source_symbols:
   - tests/resume-tree-check.mjs::mode dispatch
 validates: [feature.resume_tree.renderer, feature.resume_tree.editing, invariant.resume_tree.preservation]

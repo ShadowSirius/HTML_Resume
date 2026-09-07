@@ -1,5 +1,5 @@
 task: modify-resume-tree
-updated_at_commit: 8f7d475
+updated_at_commit: 6b8c054
 load:
   cards:
     - feature.resume_tree.renderer
