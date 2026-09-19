@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import { execFileSync, spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync } from "node:fs";
+import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { runInNewContext } from "node:vm";
@@ -12,7 +13,10 @@ const reportPath = resolve(root, "output/pdf/rs-portrait-check.md");
 const htmlPath = resolve(root, "rs_portrait.html");
 const browserPath = "C:/Users/HML/AppData/Local/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-win64/chrome-headless-shell.exe";
 const playwrightBase = "C:/Users/HML/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/package.json";
-const markerPath = "C:/Users/HML/.codex/plugins/cache/openai-primary-runtime/pdf/26.904.11930/skills/pdf/container_tools/mark_artifact_operation_started.mjs";
+const pdfPlugin = resolve(homedir(), '.codex/plugins/cache/openai-primary-runtime/pdf');
+const markerPath = readdirSync(pdfPlugin).sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}))
+  .map(version=>resolve(pdfPlugin,version,'skills/pdf/container_tools/mark_artifact_operation_started.mjs')).find(existsSync);
+if (!markerPath) throw new Error('PDF operation marker is missing from the installed PDF plugin');
 const markitdownPath = "C:/Py_venv/.venv/Scripts/markitdown.exe";
 const finalMode = process.argv.includes("--final");
 const checks = [];
@@ -114,7 +118,7 @@ check("live taxonomy is present", uiTaxonomy.inputs === currentTaxonomyIds.lengt
 const projectEditor = page.locator("button").filter({ hasText: "PROJECT EDITOR" }).first();
 await projectEditor.click();
 await page.waitForSelector("#projectpanel");
-const projectOptions = await page.locator("#projectpanel option").evaluateAll(options => options.map(option => option.value));
+const projectOptions = await page.locator("#projectpanel select").first().locator('option').evaluateAll(options => options.map(option => option.value));
 check("live UI exposes 10 projects", projectOptions.length === 10, `${projectOptions.length} project options`);
 
 const originalName = await page.locator("#projectpanel input").first().inputValue();
@@ -129,6 +133,14 @@ try {
   editSaved = Object.values(saved).some(project => project.name === editedName);
 } catch {}
 check("project editing persists to localStorage", editSaved, editStorage ? "edited project found in resumeTreeProjectsV1" : "localStorage value missing");
+const skillPicker = page.locator('#project-skill-add');
+const skillToAdd = await skillPicker.locator('option').nth(1).getAttribute('value');
+await skillPicker.selectOption(skillToAdd);
+check('skill dropdown adds and excludes duplicates',
+  (await page.getByPlaceholder('Skill IDs, comma separated').inputValue()).split(', ').includes(skillToAdd) &&
+  await skillPicker.locator(`option[value="${skillToAdd}"]`).count() === 0 &&
+  await skillPicker.inputValue() === '', 'selected skill added; picker resets and excludes linked skills');
+check('dropdown skill persists', await page.evaluate(id => Object.values(JSON.parse(localStorage.getItem('resumeTreeProjectsV1') || '{}')).some(p => p.activeSkills.includes(id)), skillToAdd), 'saved to project storage');
 await page.locator("#projectpanel button").filter({ hasText: "Reset selected project" }).click();
 await page.waitForTimeout(80);
 
@@ -236,8 +248,67 @@ const geometry = await page.evaluate(() => {
 });
 check("SVG text and project geometry", geometry.overlapCount === 0 && geometry.clippedCount === 0 && geometry.foreignObjectClippedCount === 0 && geometry.projectTextOverflowCount === 0, `${geometry.rawTextCount} SVG texts (${geometry.textCount} measurable); ${geometry.overlapCount} overlaps; ${geometry.clippedCount} clipped; ${geometry.foreignObjectCount} foreignObjects; ${geometry.foreignObjectClippedCount} card bounds clipped; ${geometry.projectTextOverflowCount} project text overflows`);
 check("all skill labels are visible", await page.locator('.skill-label').count() === currentTaxonomyIds.length, `${currentTaxonomyIds.length} labels`);
-const outsideLeaf = await page.evaluate(() => {
-  const svg = document.querySelector('#treeSvg'), leaves = [...svg.querySelectorAll('.project-leaf')], bad = [];
+const centeredRoots = await page.evaluate(() => {
+  const svg = document.querySelector('#treeSvg'), ground = svg.querySelector('.ground-line');
+  const center = (Number(ground.getAttribute('x1'))+Number(ground.getAttribute('x2')))/2;
+  const paths = [...svg.querySelectorAll('.category-root-link')];
+  return paths.length===6 && paths.every(path => {
+    const start=path.getPointAtLength(0);
+    return Math.abs(start.x-center)<.1 && Math.abs(start.y-Number(ground.getAttribute('y1')))<.1;
+  });
+});
+check('all category roots start at the center', centeredRoots, 'six roots originate at the center of the ground line');
+const circuit = await page.evaluate(() => {
+  const routes = [...document.querySelectorAll('.project-branch')], chips = [...document.querySelectorAll('.project-chip')];
+  const endpoints = routes.every(route => {
+    const chip = chips.find(n=>n.dataset.projectId === route.dataset.projectId), box = chip.getBBox();
+    const end = route.getPointAtLength(route.getTotalLength());
+    return Math.abs(end.y-box.y)<.1 && end.x>=box.x-.1 && end.x<=box.x+box.width+.1;
+  });
+  const clear = routes.every(route => {
+    for (let d=0;d<route.getTotalLength()-1;d+=2) {
+      if(chips.some(chip=>chip.isPointInFill(route.getPointAtLength(d)))) return false;
+    }
+    return true;
+  });
+  const rising = routes.every(route => {
+    let previous = route.getPointAtLength(0).y;
+    for(let d=2;d<=route.getTotalLength();d+=2) {
+      const y=route.getPointAtLength(d).y;
+      if(y>previous+.01) return false;
+      previous=y;
+    }
+    return /^M[\d.,-]+V[\d.-]+L[\d.,-]+$/.test(route.getAttribute('d'));
+  });
+  return {
+    count:routes.length, endpoints, clear, rising,
+    lanes:new Set(routes.map(n=>n.getPointAtLength(0).x)).size,
+    levels:new Set(chips.map(n=>n.getBBox().y)).size,
+    pins:document.querySelectorAll('.chip-pins').length,
+    background:getComputedStyle(document.querySelector('#a4c')).backgroundColor,
+    rootColors:new Set([...document.querySelectorAll('.skill-dot')].map(n=>n.getAttribute('fill'))).size
+  };
+});
+check('staggered projects have independent rising traces', circuit.count===10 && circuit.lanes===10 && circuit.levels===10 && circuit.endpoints && circuit.clear && circuit.rising && !circuit.pins,
+  '10 separate vertical/diagonal routes into top corners; no downward hooks, pins, or traces through blocks');
+check('light résumé uses one root accent', circuit.background==='rgb(255, 255, 255)' && circuit.rootColors===1,
+  'white paper with one muted green accent for every skill category');
+const rootFootprint = () => page.evaluate(() => {
+  const svg = document.querySelector('#treeSvg'), paper = document.querySelector('#a4c').getBoundingClientRect();
+  const ground = Number(svg.querySelector('.ground-line').getAttribute('y1'));
+  const screenGround = new DOMPoint(0,ground).matrixTransform(svg.getScreenCTM()).y;
+  const rootsBelowGround = [...svg.querySelectorAll('.root-link,.skill-label,.skill-dot')].every(n => {
+    const box = n.getBBox();
+    return box.y >= ground - .1 && box.y + box.height <= svg.viewBox.baseVal.height;
+  });
+  const canopyAboveGround = [...svg.querySelectorAll('.project-chip')].every(n => n.getBBox().y+n.getBBox().height < ground-12);
+  return {percent:100*(paper.bottom-screenGround)/paper.height,rootsBelowGround,canopyAboveGround};
+});
+const screenRoots = await rootFootprint();
+check('roots occupy 25–30% of the résumé', screenRoots.percent >= 25 && screenRoots.percent <= 30 && screenRoots.rootsBelowGround && screenRoots.canopyAboveGround,
+  `${screenRoots.percent.toFixed(2)}% of content height; complete roots below ground and project chips above it`);
+const outsideChip = await page.evaluate(() => {
+  const svg = document.querySelector('#treeSvg'), leaves = [...svg.querySelectorAll('.project-chip')], bad = [];
   [...svg.querySelectorAll('.project-card')].forEach((card, i) => {
     const walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT);
     while (walker.nextNode()) {
@@ -250,7 +321,7 @@ const outsideLeaf = await page.evaluate(() => {
   });
   return bad;
 });
-check("project text stays inside leaf silhouettes", outsideLeaf.length === 0, outsideLeaf.join('; ') || "all text corners inside their leaves");
+check("project text stays inside chip packages", outsideChip.length === 0, outsideChip.join('; ') || "all text corners inside their chip packages");
 
 try {
   await page.locator("#a4c svg foreignObject").first().locator("div").first().click({ force: true });
@@ -304,6 +375,10 @@ check("print background is white", [printState.a4Background, printState.bodyBack
 const printTextPt = await page.locator('.skill-label').first().evaluate(n => parseFloat(getComputedStyle(n).fontSize) * n.ownerSVGElement.getScreenCTM().a * 0.75);
 check("skill text prints at least 9pt", printTextPt >= 9, `${printTextPt.toFixed(2)} pt`);
 check('print restores full taxonomy at collapsed depth', await page.locator('.skill-label').count() === 95, 'all 95 nodes printed');
+const printRoots = await rootFootprint();
+const rootA4Percent = printRoots.percent * 281 / 297; // 8 mm page margins above and below the 281 mm content area.
+check('printed roots occupy 25–30% of A4', rootA4Percent >= 25 && rootA4Percent <= 30 && printRoots.rootsBelowGround && printRoots.canopyAboveGround,
+  `${rootA4Percent.toFixed(2)}% of A4 height; ${printRoots.percent.toFixed(2)}% of printable content; no root or canopy overflow`);
 check("all interactions remain error-free", !pageErrors.length && !consoleErrors.length, [...pageErrors,...consoleErrors].join('; ') || 'no runtime errors');
 
 execFileSync(process.execPath, [markerPath, "--operation-kind", "create", "--expected-output-count", "1", "--output-format", "pdf"], { cwd: dirname(markerPath), stdio: "inherit", windowsHide: true });

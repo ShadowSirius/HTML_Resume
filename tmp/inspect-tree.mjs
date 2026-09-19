@@ -13,7 +13,7 @@ for (const file of process.argv.slice(2)) {
   await page.locator('#a4c').screenshot({path:`tmp/${name}.png`});
   fs.writeFileSync(`tmp/${name}-dom.html`,await page.content());
   console.log(file, await page.evaluate(() => {
-    const svg=document.querySelector('#treeSvg'), leaves=[...document.querySelectorAll('.project-leaf')];
+    const svg=document.querySelector('#treeSvg'), leaves=[...document.querySelectorAll('.project-chip')];
     if (!svg) return {title:document.title};
     const outside=[];
     [...document.querySelectorAll('.project-card')].forEach((card,i)=>{

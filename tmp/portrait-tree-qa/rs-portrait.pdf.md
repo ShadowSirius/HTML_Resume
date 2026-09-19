@@ -1,11 +1,15 @@
 Jay Huang
 // High-Performance Motor Control & Embedded Systems
 
-📧 jay.huang@email.com
-📱 +886 912 345 678
+P R O J E C T   C A N O P Y
 
-📍 Taipei, Taiwan
-🔗 linkedin.com/in/jayhuang
+jay.huang@email.com
+
+Taipei, Taiwan
+
++886 912 345 678
+
+linkedin.com/in/jayhuang
 
 DynamicBoost + DCAC 2022
 12kW boost + DC-AC converter
@@ -47,8 +51,6 @@ PV Inverter 2017
 Solar PV grid-tie inverter, MPPT
 99.5% MPPT efficiency
 
-P R O J E C T   C A N O P Y
-
 S K I L L   R O O T S
 
 Embedded Firmware
@@ -60,204 +62,136 @@ Control & Power Conversion
 Hardware & Test Systems
 Hardware & Test Systems
 
-Languages
-Languages
-
-CC
-
-Assembly
-Assembly
-MCU Platforms
-MCU Platforms
+Languages:
+Languages: Assembly
+Assembly CC
+MCU Platforms: TI-DSP
+MCU Platforms:
 TI-DSP
-TI-DSP
-Microchip
-Microchip
-
 Renesas
-Renesas
-STST
-
-NXPNXP
-
-Embedded Functions
-Embedded Functions
+Microchip STST NXPNXP
+Renesas Microchip
+Embedded Functions:
+Embedded Functions:
 Embedded System
-Embedded System
+Embedded System Bootloader
 Bootloader
-Bootloader
-Communication
-Communication
-UARTUART
-
-SPISPI
-CANCAN
-
+Communication:
+Communication: SPISPI UARTUART
+ISO15762 ISO14230
 ISO15762
-ISO15762
-
-ISO14230
+CAN:CAN:
 ISO14230
 
 Modelling & Digital Twin
 Modelling & Digital Twin
 
-System Modelling
-System Modelling
-Ansys Twins MATLAB
+System Modelling:
+System Modelling: Ansys Twins
 Ansys Twins
 MATLAB
-
-Circuit Modelling
-Circuit Modelling
+MATLAB
+Circuit Modelling: Ansys Q3D
+Circuit Modelling:
 Ansys Q3D
-Ansys Q3D
-PSpice
-PSpice
-
-PSIMPSIM
-
+SIMetrix PSpice
 SIMetrix
-SIMetrix
+
+PSpice PSIMPSIM
+
+AI Engineering
+AI Engineering
+
+Analysis Automation:
+Analysis Automation:
+Dynamic Analysis (MATLAB)
+Dynamic Analysis (MATLAB)
+Python & GUI
+Python & GUI
 
 Engine Control
 Engine Control
-
-DC Bus
-DC Bus
-
-PAMPAM CV/CC
+DC Bus: PAMPAM CV/CC
+DC Bus:
 CV/CC
-
-Grid / AC Load
-Grid / AC Load
-MPPTMPPT
-PFCPFC
+Grid / AC Load:
+Grid / AC Load: MPPTMPPT PFCPFC
 Droop Control
 Droop Control
-
-Motor Control
-Motor Control
+Motor Control:
+Motor Control: Capless
 Capless
+Speed Control Position Control
 Speed Control
-Speed Control
-Capless
-Position Control MTPAMTPA
 Position Control
+MTPAMTPA Flux Weakening
 Flux Weakening
-Flux Weakening
-FOCFOC
-
-V/FV/F
-
-I/FI/F
-
 θv Control
-θv Control
-
-Position Sensing
-Position Sensing
-
+θv Control FOCFOC V/FV/F I/FI/F
+Position Sensing:
+Position Sensing:
 Sensorless / Back-EMF
 Sensorless / Back-EMF
-Encoder
-Hall Sensor
-Encoder
+Encoder Resolver
+Hall Sensor Encoder
 Hall Sensor
 Resolver
-Resolver
-Modulation
-Modulation
-
-SVPWM DPWM1
+Modulation: SPWMSPWM SVPWM
+Modulation:
+SVPWM
 DPWM1
-
-SPWMSPWM SVPWM
-DPWM Min
+DPWM1 DPWM Min
 DPWM Min
 Six-Step / One-Pulse
 Six-Step / One-Pulse
 
-AI Engineering
-AI Engineering
+Engineering Process & Standards
+Engineering Process & Standards
+ISO 26262 ASPICE
+ISO 26262
+ASPICE
 
-Analysis Automation
-Analysis Automation
+Standards:
+Standards:
+Static Analysis (Polyspace)
+Static Analysis (Polyspace)
 
-Dynamic Analysis (MATLAB)
-Dynamic Analysis (MATLAB)
-Python & GUI
-Python & GUI
+IGBT
+IGBT
 
-Motor Types
-Motor Types
-
-PMSMPMSM IMIM
+Motor Types:
+Motor Types: PMSMPMSM IMIM
+Six-Phase PMSM PMASynRM
 Six-Phase PMSM
-Six-Phase PMSM
-PMASynRM SynRM
 PMASynRM
 SynRM
-
-Power Components
-Power Components
-IGBT MOSFET
-IGBT
-SiCSiC
-
-MOSFET GaNGaN
-
-Hardware Layout
-Hardware Layout
+SynRM
+Power Components:
+Power Components:
+MOSFET
+MOSFET GaNGaN SiCSiC
+Hardware Layout:
+Hardware Layout: Peripheral
 Peripheral
-Peripheral
-Dynamometer
-Dynamometer
-Active Load
-Active Load
-Yaskawa
-Yaskawa
-Siemens
-Siemens
-
 Power Stage
 Power Stage
-
-YLYL
-
-DeltaDelta
-
+Dynamometer: Active Load:
+Dynamometer:
+Active Load:
+Yaskawa
+Yaskawa YLYL DeltaDelta Siemens
+Siemens
 Passive Load (EM Brake)
 Passive Load (EM Brake)
-
-Shaft Alignment
-Shaft Alignment
-Dial Indicator
+Shaft Alignment: Dial Indicator
+Shaft Alignment:
 Dial Indicator
 Laser Alignment
 Laser Alignment
-
-Measurement
-Measurement
-
-Motor Characteristics (R, L, Ke,
-Motor Characteristics (R, L, Ke,
-Kt, J)Kt, J)
+Measurement:
+Measurement:
+Motor Characteristics (R, L, Ke, Kt, J)
+Motor Characteristics (R, L, Ke, Kt, J)
 System / Circuit (Bode, FFT)
 System / Circuit (Bode, FFT)
-
-Engineering Process & Standards
-Engineering Process & Standards
-
-Standards
-Standards
-
-ISO 26262
-ISO 26262
-
-ASPICE
-ASPICE
-
-Static Analysis (Polyspace)
-Static Analysis (Polyspace)
 

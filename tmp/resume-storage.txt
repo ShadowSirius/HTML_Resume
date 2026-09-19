@@ -1,0 +1,51 @@
+  resumeSnapshot() {
+    return { version: 2, exportedAt: new Date().toISOString(), skills: this.tree(), projects: PROJECTS, editor: { outline: this.state.outline, drag: this.state.drag, linkStyle: this.state.linkStyle, custom: this.state.custom } };
+  }
+  validateResume(data) {
+    const fail = () => { throw new Error('Invalid résumé JSON. Use a file exported with Save JSON.'); };
+    const object = v => v && typeof v === 'object' && !Array.isArray(v);
+    let count = 0;
+    const safe = (v, depth = 0) => {
+      if (++count > 50000 || depth > 40) fail();
+      if (typeof v === 'number' && !Number.isFinite(v)) fail();
+      if (v && typeof v === 'object') Object.entries(v).forEach(([k,x]) => { if (['__proto__','constructor','prototype'].includes(k)) fail(); safe(x,depth+1); });
+    };
+    safe(data);
+    if (!object(data) || data.version !== 2 || !object(data.projects) || !object(data.editor)) fail();
+    const ids = new Set();
+    const tree = (n, root = false) => { if (!object(n) || typeof n.name !== 'string' || (!root && (typeof n.id !== 'string' || ids.has(n.id)))) fail(); if (n.id) ids.add(n.id); if (n.children !== undefined) { if (!Array.isArray(n.children)) fail(); n.children.forEach(c=>tree(c)); } };
+    tree(data.skills,true);
+    Object.values(data.projects).forEach(p => { if (!object(p) || !['name','year','desc','result'].every(k=>typeof p[k]==='string') || !Array.isArray(p.activeSkills) || !p.activeSkills.every(id=>typeof id==='string')) fail(); });
+    const e = data.editor;
+    if (e.outline !== null && typeof e.outline !== 'string') fail();
+    if (!object(e.drag) || !object(e.linkStyle) || !object(e.custom) || !Array.isArray(e.custom.nodes) || !Array.isArray(e.custom.links)) fail();
+    Object.values(e.drag).forEach(v=>{if(!object(v) || !Object.values(v).every(x=>typeof x==='number' && Number.isFinite(x))) fail();});
+    if (!Object.values(e.linkStyle).every(x=>['straight','stepped','curved'].includes(x))) fail();
+    return data;
+  }
+  applyResume(data) {
+    this.validateResume(data);
+    const keys = ['resumeTreeLoadedV1','resumeTreeProjectsV1','resumeTreeDragV1','resumeTreeLinkStyleV1','resumeTreeCustomV1','resumeTreeOutlineV2'];
+    const before = keys.map(k=>localStorage.getItem(k));
+    try {
+      localStorage.setItem(keys[0],JSON.stringify(data));
+      keys.slice(1).forEach(k=>localStorage.removeItem(k));
+    } catch(error) {
+      keys.forEach((k,i)=>{try { if(before[i]===null) localStorage.removeItem(k); else localStorage.setItem(k,before[i]); } catch(_) {} });
+      throw new Error('Could not save the loaded résumé. Browser storage may be full.');
+    }
+    location.reload();
+  }
+  loadResume() {
+    const input = document.createElement('input'); input.type='file'; input.accept='.json,application/json';
+    input.onchange = async () => { const file=input.files[0]; if(!file) return; try { if(file.size>2000000) throw new Error('JSON file must be smaller than 2 MB.'); this.applyResume(JSON.parse(await file.text())); } catch(e) { alert('Load failed: '+e.message); } };
+    input.click();
+  }
+  saveResumeDefault() {
+    try { const data=this.validateResume(this.resumeSnapshot()); localStorage.setItem('resumeTreeDefaultV1',JSON.stringify(data)); this.setState({storageMessage:'Default saved in this browser. Use Restore default to return to it.'}); }
+    catch(e) { alert('Save default failed: '+e.message); }
+  }
+  restoreResumeDefault() {
+    try { const saved=localStorage.getItem('resumeTreeDefaultV1'); if(!saved) throw new Error('No saved default yet.'); this.applyResume(JSON.parse(saved)); }
+    catch(e) { alert('Restore failed: '+e.message); }
+  }
