@@ -208,46 +208,82 @@ await page.getByRole('button', {name: '直線 Straight', exact:false}).click();
 
 let selectedBefore = false;
 try {
-  await page.locator("#a4c svg foreignObject").first().locator("div").first().click({ force: true });
+  await page.locator("#a4c svg .project-card").first().click({ force: true });
   await page.waitForTimeout(80);
   selectedBefore = await page.locator("button").filter({ hasText: "Clear selection" }).count() > 0;
 } catch {}
-check("selection smoke check", selectedBefore, "clicking a generated SVG label exposes Clear selection");
+check("selection smoke check", selectedBefore, "clicking a project card exposes Clear selection");
 
 await clearSelection();
 await page.waitForTimeout(100);
 
 const geometry = await page.evaluate(() => {
-  const svg = [...document.querySelectorAll("#a4c svg")].sort((a, b) => b.querySelectorAll("text").length - a.querySelectorAll("text").length)[0];
-  if (!svg) return { textCount: 0, rawTextCount: 0, overlaps: [], clipped: [], foreignObjectCount: 0, foreignObjectClippedCount: 0, projectTextOverflowCount: 0 };
-  const viewBox = (svg.getAttribute("viewBox") || "0 0 0 0").split(/\s+/).map(Number);
-  const [vx, vy, vw, vh] = viewBox;
+  const svg = document.querySelector("#treeSvg");
+  if (!svg) return { textCount: 0, rawTextCount: 0, overlaps: [], clipped: [], overlapCount: 0, clippedCount: 0, foreignObjectCount: 0, projectTextOutsideCount: 0 };
+  const svgRect = svg.getBoundingClientRect();
   const boxes = [...svg.querySelectorAll("text")].map((node, i) => {
-    const box = node.getBBox();
-    return { i, text: (node.textContent || "").trim(), x: box.x, y: box.y, w: box.width, h: box.height };
+    const r = node.getBoundingClientRect();
+    return { i, text: (node.textContent || "").trim(), x: r.left, y: r.top, w: r.width, h: r.height };
   }).filter(box => box.w > 0 && box.h > 0);
   const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
   const overlaps = [];
   for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) if (overlap(boxes[i], boxes[j])) overlaps.push(`${boxes[i].text} / ${boxes[j].text}`);
-  const clipped = boxes.filter(box => box.x < vx || box.y < vy || box.x + box.w > vx + vw || box.y + box.h > vy + vh).map(box => box.text);
-  const foreignObjects = [...svg.querySelectorAll("foreignObject")].map(node => ({
-    x: Number(node.getAttribute("x")), y: Number(node.getAttribute("y")),
-    w: Number(node.getAttribute("width")), h: Number(node.getAttribute("height")),
-    card: node.firstElementChild
-  }));
-  const foreignObjectClipped = foreignObjects.filter(box => box.x < vx || box.y < vy || box.x + box.w > vx + vw || box.y + box.h > vy + vh);
-  const projectTextOverflow = foreignObjects.filter(box => box.card && (box.card.scrollWidth > box.card.clientWidth + 1 || box.card.scrollHeight > box.card.clientHeight + 1));
+  const clipped = boxes.filter(box => box.x < svgRect.left - 1 || box.y < svgRect.top - 1 || box.x + box.w > svgRect.right + 1 || box.y + box.h > svgRect.bottom + 1).map(box => box.text);
+  const chips = [...svg.querySelectorAll(".project-chip")];
+  const projectTextOutside = [];
+  [...svg.querySelectorAll(".project-card")].forEach(card => {
+    const chip = chips.find(node => node.dataset.projectId === card.dataset.projectId);
+    if (!chip) { projectTextOutside.push(card.dataset.projectId || "missing-chip"); return; }
+    const cr = chip.getBoundingClientRect();
+    [...card.querySelectorAll("text")].forEach(node => {
+      const r = node.getBoundingClientRect();
+      if (r.left < cr.left - 1 || r.top < cr.top - 1 || r.right > cr.right + 1 || r.bottom > cr.bottom + 1) projectTextOutside.push(node.textContent || card.dataset.projectId);
+    });
+  });
   return {
     textCount: boxes.length, rawTextCount: svg.querySelectorAll("text").length,
     overlaps: overlaps.slice(0, 12), overlapCount: overlaps.length,
     clipped: clipped.slice(0, 12), clippedCount: clipped.length,
-    foreignObjectCount: foreignObjects.length,
-    foreignObjectClippedCount: foreignObjectClipped.length,
-    projectTextOverflowCount: projectTextOverflow.length
+    foreignObjectCount: svg.querySelectorAll("foreignObject").length,
+    projectTextOutsideCount: projectTextOutside.length
   };
 });
-check("SVG text and project geometry", geometry.overlapCount === 0 && geometry.clippedCount === 0 && geometry.foreignObjectClippedCount === 0 && geometry.projectTextOverflowCount === 0, `${geometry.rawTextCount} SVG texts (${geometry.textCount} measurable); ${geometry.overlapCount} overlaps; ${geometry.clippedCount} clipped; ${geometry.foreignObjectCount} foreignObjects; ${geometry.foreignObjectClippedCount} card bounds clipped; ${geometry.projectTextOverflowCount} project text overflows`);
+check("SVG text and project geometry", geometry.overlapCount === 0 && geometry.clippedCount === 0 && geometry.foreignObjectCount === 0 && geometry.projectTextOutsideCount === 0, `${geometry.rawTextCount} SVG texts (${geometry.textCount} measurable); ${geometry.overlapCount} overlaps; ${geometry.clippedCount} clipped; ${geometry.foreignObjectCount} foreignObjects; ${geometry.projectTextOutsideCount} project texts outside chips`);
 check("all skill labels are visible", await page.locator('.skill-label').count() === currentTaxonomyIds.length, `${currentTaxonomyIds.length} labels`);
+const layoutSignature = async () => page.evaluate(() => {
+  const round = n => Math.round(n * 1000) / 1000;
+  const a4 = document.querySelector("#a4c"), header = a4?.querySelector("header"), svg = document.querySelector("#treeSvg");
+  const style = a4 ? getComputedStyle(a4) : null, headerStyle = header ? getComputedStyle(header) : null;
+  const sig = selector => [...document.querySelectorAll(selector)].slice(0, 32).map(node => {
+    const b = node.getBBox();
+    return [(node.textContent || "").trim(), round(b.x), round(b.y), round(b.width), round(b.height)];
+  });
+  return {
+    pageW: style ? round(parseFloat(style.width)) : 0,
+    pageH: style ? round(parseFloat(style.height)) : 0,
+    headerH: headerStyle ? round(parseFloat(headerStyle.height)) : 0,
+    viewBox: svg?.getAttribute("viewBox") || "",
+    skills: sig(".skill-label"),
+    projects: sig(".project-card text")
+  };
+});
+const desktopLayout = await layoutSignature();
+const viewportChecks = [];
+for (const size of [{ width: 820, height: 1180, name: "iPad portrait" }, { width: 1180, height: 820, name: "iPad landscape" }]) {
+  await page.setViewportSize({ width: size.width, height: size.height });
+  await page.waitForTimeout(120);
+  const signature = await layoutSignature();
+  const bounds = await page.evaluate(() => {
+    const vp = document.querySelector("#vp")?.getBoundingClientRect(), fit = document.querySelector("#a4fit")?.getBoundingClientRect();
+    return vp && fit ? { inside: fit.width <= vp.width + 1 && fit.height <= vp.height + 1, vw: vp.width, vh: vp.height, fw: fit.width, fh: fit.height } : { inside: false };
+  });
+  viewportChecks.push({ name: size.name, invariant: JSON.stringify(signature) === JSON.stringify(desktopLayout), bounds });
+}
+check("A4 geometry is viewport-invariant", viewportChecks.every(v => v.invariant), viewportChecks.map(v => `${v.name}: ${v.invariant ? "stable" : "changed"}`).join(" / "));
+check("A4 fit stays inside iPad viewport", viewportChecks.every(v => v.bounds.inside), viewportChecks.map(v => `${v.name}: ${Math.round(v.bounds.fw || 0)}x${Math.round(v.bounds.fh || 0)} in ${Math.round(v.bounds.vw || 0)}x${Math.round(v.bounds.vh || 0)}`).join(" / "));
+await page.setViewportSize({ width: 1440, height: 1000 });
+await page.waitForTimeout(120);
+
 const centeredRoots = await page.evaluate(() => {
   const svg = document.querySelector('#treeSvg'), ground = svg.querySelector('.ground-line');
   const center = (Number(ground.getAttribute('x1'))+Number(ground.getAttribute('x2')))/2;
@@ -308,23 +344,23 @@ const screenRoots = await rootFootprint();
 check('roots occupy 25–30% of the résumé', screenRoots.percent >= 25 && screenRoots.percent <= 30 && screenRoots.rootsBelowGround && screenRoots.canopyAboveGround,
   `${screenRoots.percent.toFixed(2)}% of content height; complete roots below ground and project chips above it`);
 const outsideChip = await page.evaluate(() => {
-  const svg = document.querySelector('#treeSvg'), leaves = [...svg.querySelectorAll('.project-chip')], bad = [];
-  [...svg.querySelectorAll('.project-card')].forEach((card, i) => {
-    const walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT);
-    while (walker.nextNode()) {
-      if (!walker.currentNode.textContent.trim()) continue;
-      const range = document.createRange(); range.selectNodeContents(walker.currentNode);
-      for (const r of range.getClientRects()) for (const [x, y] of [[r.left,r.top],[r.right,r.top],[r.left,r.bottom],[r.right,r.bottom]]) {
-        if (!leaves[i].isPointInFill(new DOMPoint(x,y).matrixTransform(svg.getScreenCTM().inverse()))) bad.push(walker.currentNode.textContent);
-      }
-    }
+  const svg = document.querySelector("#treeSvg"), bad = [];
+  const chips = [...svg.querySelectorAll(".project-chip")];
+  [...svg.querySelectorAll(".project-card")].forEach(card => {
+    const chip = chips.find(node => node.dataset.projectId === card.dataset.projectId);
+    if (!chip) { bad.push(card.dataset.projectId || "missing-chip"); return; }
+    const cr = chip.getBoundingClientRect();
+    [...card.querySelectorAll("text")].forEach(node => {
+      const r = node.getBoundingClientRect();
+      if (r.left < cr.left - 1 || r.top < cr.top - 1 || r.right > cr.right + 1 || r.bottom > cr.bottom + 1) bad.push(node.textContent || card.dataset.projectId);
+    });
   });
   return bad;
 });
 check("project text stays inside chip packages", outsideChip.length === 0, outsideChip.join('; ') || "all text corners inside their chip packages");
 
 try {
-  await page.locator("#a4c svg foreignObject").first().locator("div").first().click({ force: true });
+  await page.locator("#a4c svg .project-card").first().click({ force: true });
   await page.waitForTimeout(80);
 } catch {}
 
@@ -340,9 +376,10 @@ if (vpBox) {
 }
 const temporaryView = await page.evaluate(() => ({
   fitStyle: document.querySelector("#a4fit")?.getAttribute("style") || "",
+  pageStyle: document.querySelector("#a4c")?.getAttribute("style") || "",
   selected: !!document.querySelector("button") && [...document.querySelectorAll("button")].some(button => button.textContent.includes("Clear selection"))
 }));
-check("temporary zoom/pan/selection applied", /scale\(1\.3/.test(temporaryView.fitStyle) && !/translate\(0px,\s*0px\)/.test(temporaryView.fitStyle) && temporaryView.selected, temporaryView.fitStyle);
+check("temporary zoom/pan/selection applied", /scale\(1\.3/.test(temporaryView.pageStyle) && !/translate\(0px,\s*0px\)/.test(temporaryView.fitStyle) && temporaryView.selected, temporaryView.fitStyle + " / " + temporaryView.pageStyle);
 
 const outlineToggle = page.locator('button').filter({hasText:'技能樹編輯'}).first();
 await outlineToggle.click();
@@ -359,6 +396,7 @@ const printState = await page.evaluate(() => {
   const style = getComputedStyle(a4);
   return {
     fitStyle: fit?.getAttribute("style") || "",
+    pageStyle: a4?.getAttribute("style") || "",
     a4Background: style.backgroundColor,
     bodyBackground: getComputedStyle(document.body).backgroundColor,
     scrBackground: getComputedStyle(document.querySelector("#scr")).backgroundColor,
@@ -368,8 +406,8 @@ const printState = await page.evaluate(() => {
     })
   };
 });
-const printIdentity = /translate\(0px,\s*0px\)\s*scale\(1\)/.test(printState.fitStyle);
-check("print resets temporary zoom/pan", printIdentity, printState.fitStyle);
+const printIdentity = /translate\(0px,\s*0px\)/.test(printState.fitStyle) && /scale\(1\)/.test(printState.pageStyle);
+check("print resets temporary zoom/pan", printIdentity, printState.fitStyle + " / " + printState.pageStyle);
 check("print hides editing controls", printState.controlsHidden, "toolbar and panels hidden in print media");
 check("print background is white", [printState.a4Background, printState.bodyBackground, printState.scrBackground].every(value => value === "rgb(255, 255, 255)"), `${printState.a4Background} / ${printState.bodyBackground} / ${printState.scrBackground}`);
 const printTextPt = await page.locator('.skill-label').first().evaluate(n => parseFloat(getComputedStyle(n).fontSize) * n.ownerSVGElement.getScreenCTM().a * 0.75);
@@ -401,7 +439,7 @@ check("PDF rendering completed", render.status === 0, render.stderr.trim() || "r
 
 const deferred = [];
 for (const item of checks.filter(item => !item.pass && !["SVG text and project geometry", "print background is white"].includes(item.name))) deferred.push(`- ${item.name}: ${item.detail}`);
-if (geometry.overlapCount || geometry.clippedCount || geometry.foreignObjectClippedCount || geometry.projectTextOverflowCount) deferred.push(`- SVG/project geometry remains a baseline blocker: ${geometry.overlapCount} text overlaps, ${geometry.clippedCount} clipped text boxes, ${geometry.foreignObjectClippedCount} clipped card bounds, ${geometry.projectTextOverflowCount} project text overflows.`);
+if (geometry.overlapCount || geometry.clippedCount || geometry.foreignObjectCount || geometry.projectTextOutsideCount) deferred.push(`- SVG/project geometry remains a baseline blocker: ${geometry.overlapCount} text overlaps, ${geometry.clippedCount} clipped text boxes, ${geometry.foreignObjectCount} foreignObjects, ${geometry.projectTextOutsideCount} project texts outside chips.`);
 if (!printIdentity) deferred.push("- Print still carries the temporary zoom/pan transform.");
 if (![printState.a4Background, printState.bodyBackground, printState.scrBackground].every(value => value === "rgb(255, 255, 255)")) deferred.push(`- Print background is not fully white: ${printState.a4Background} / ${printState.bodyBackground} / ${printState.scrBackground}.`);
 if (pageCount !== 1) deferred.push(`- PDF page count is ${pageCount}; expected exactly one A4 portrait page.`);
@@ -417,9 +455,9 @@ const report = [
   "## Measurements",
   `- Taxonomy: ${currentTaxonomyIds.length} nodes including category roots; browser outline rows: ${uiTaxonomy.inputs}.`,
   `- Projects: ${projectOptions.length} live options; static records: ${Object.keys(currentProjects).length}.`,
-  `- SVG/project geometry: ${geometry.rawTextCount} SVG texts (${geometry.textCount} measurable); overlaps: ${geometry.overlapCount}; clipped text: ${geometry.clippedCount}; foreignObjects: ${geometry.foreignObjectCount}; clipped cards: ${geometry.foreignObjectClippedCount}; project text overflows: ${geometry.projectTextOverflowCount}.`,
-  `- Temporary view before print: ${temporaryView.fitStyle || "unknown"}.`,
-  `- Print view: ${printState.fitStyle || "unknown"}; controls hidden: ${printState.controlsHidden}; backgrounds: ${printState.a4Background} / ${printState.bodyBackground} / ${printState.scrBackground}.`,
+  `- SVG/project geometry: ${geometry.rawTextCount} SVG texts (${geometry.textCount} measurable); overlaps: ${geometry.overlapCount}; clipped text: ${geometry.clippedCount}; foreignObjects: ${geometry.foreignObjectCount}; project texts outside chips: ${geometry.projectTextOutsideCount}.`,
+  `- Temporary view before print: ${temporaryView.fitStyle || "unknown"} / ${temporaryView.pageStyle || "unknown"}.`,
+  `- Print view: ${printState.fitStyle || "unknown"} / ${printState.pageStyle || "unknown"}; controls hidden: ${printState.controlsHidden}; backgrounds: ${printState.a4Background} / ${printState.bodyBackground} / ${printState.scrBackground}.`,
   `- PDF: ${pageCount} page(s); ${pageSize}; extracted markdown: ${pdfText.trim().length} characters.`,
   "",
   "## Check results",
