@@ -252,13 +252,15 @@ check("SVG text and project geometry", geometry.overlapCount === 0 && geometry.c
 check("all skill labels are visible", await page.locator('.skill-label').count() === currentTaxonomyIds.length, `${currentTaxonomyIds.length} labels`);
 const layoutSignature = async () => page.evaluate(() => {
   const round = n => Math.round(n * 1000) / 1000;
-  const a4 = document.querySelector("#a4c"), header = a4?.querySelector("header"), svg = document.querySelector("#treeSvg");
-  const style = a4 ? getComputedStyle(a4) : null, headerStyle = header ? getComputedStyle(header) : null;
+  const a4 = document.querySelector("#a4c"), paper = document.querySelector("#a4page"), header = a4?.querySelector("header"), svg = document.querySelector("#treeSvg");
+  const style = a4 ? getComputedStyle(a4) : null, paperStyle = paper ? getComputedStyle(paper) : null, headerStyle = header ? getComputedStyle(header) : null;
   const sig = selector => [...document.querySelectorAll(selector)].slice(0, 32).map(node => {
     const b = node.getBBox();
     return [(node.textContent || "").trim(), round(b.x), round(b.y), round(b.width), round(b.height)];
   });
   return {
+    fullPageW: paperStyle ? round(parseFloat(paperStyle.width)) : 0,
+    fullPageH: paperStyle ? round(parseFloat(paperStyle.height)) : 0,
     pageW: style ? round(parseFloat(style.width)) : 0,
     pageH: style ? round(parseFloat(style.height)) : 0,
     headerH: headerStyle ? round(parseFloat(headerStyle.height)) : 0,
@@ -376,7 +378,7 @@ if (vpBox) {
 }
 const temporaryView = await page.evaluate(() => ({
   fitStyle: document.querySelector("#a4fit")?.getAttribute("style") || "",
-  pageStyle: document.querySelector("#a4c")?.getAttribute("style") || "",
+  pageStyle: document.querySelector("#a4page")?.getAttribute("style") || "",
   selected: !!document.querySelector("button") && [...document.querySelectorAll("button")].some(button => button.textContent.includes("Clear selection"))
 }));
 check("temporary zoom/pan/selection applied", /scale\(1\.3/.test(temporaryView.pageStyle) && !/translate\(0px,\s*0px\)/.test(temporaryView.fitStyle) && temporaryView.selected, temporaryView.fitStyle + " / " + temporaryView.pageStyle);
@@ -392,11 +394,12 @@ await page.evaluate(() => window.dispatchEvent(new Event("beforeprint")));
 await page.waitForTimeout(100);
 const printState = await page.evaluate(() => {
   const a4 = document.querySelector("#a4c");
+  const pagePaper = document.querySelector("#a4page");
   const fit = document.querySelector("#a4fit");
   const style = getComputedStyle(a4);
   return {
     fitStyle: fit?.getAttribute("style") || "",
-    pageStyle: a4?.getAttribute("style") || "",
+    pageStyle: pagePaper?.getAttribute("style") || "",
     a4Background: style.backgroundColor,
     bodyBackground: getComputedStyle(document.body).backgroundColor,
     scrBackground: getComputedStyle(document.querySelector("#scr")).backgroundColor,
