@@ -59,7 +59,19 @@ function command(name, args) {
   return { ...result, stdout: result.stdout || "", stderr: result.stderr || "" };
 }
 
+const currentSource = readFileSync(htmlPath, "utf8");
 const currentTemplate = unpack(htmlPath);
+check("portrait is direct standalone HTML",
+  !currentSource.includes('__bundler/template') &&
+  !currentSource.includes('__bundler/manifest') &&
+  !currentSource.includes('__bundler_thumbnail') &&
+  !currentSource.includes('document.documentElement.replaceWith'),
+  "no outer bundle, thumbnail, or document swap");
+check("startup reveals only settled final layout",
+  currentSource.includes('html:not(.app-ready) body{visibility:hidden}') &&
+  currentSource.includes('stable>=2') &&
+  currentSource.includes('classList.add("app-ready")'),
+  "body stays hidden until A4 fit is stable");
 const baselinePath = resolve(root, "baseline/rs_portrait.html");
 const baselineTemplate = unpack(baselinePath);
 const currentSkills = readObject(currentTemplate, "SKILL_DATA", "PROJECTS");
@@ -95,11 +107,15 @@ await page.waitForTimeout(150);
 
 check("file:// stays offline", externalRequests.length === 0, externalRequests.length ? externalRequests.join(", ") : "no external requests");
 check("bundler errors absent", consoleErrors.length === 0 && pageErrors.length === 0, [...consoleErrors, ...pageErrors].slice(0, 3).join(" | ") || "none");
-const loaderState = await page.evaluate(() => ({
+const startupState = await page.evaluate(() => ({
   loading: !!document.querySelector("#__bundler_loading"),
-  liveThumbnail: [...document.querySelectorAll("#__bundler_thumbnail")].some(node => node.tagName !== "TEMPLATE")
+  thumbnail: !!document.querySelector("#__bundler_thumbnail"),
+  appReady: document.documentElement.classList.contains("app-ready"),
+  bodyVisibility: getComputedStyle(document.body).visibility
 }));
-check("generated DOM replaced loader", !loaderState.loading && !loaderState.liveThumbnail, "loading UI and live thumbnail are gone after hydration");
+check("direct final page is the first visible layout",
+  !startupState.loading && !startupState.thumbnail && startupState.appReady && startupState.bodyVisibility === "visible",
+  JSON.stringify(startupState));
 
 const uiTaxonomy = await (async () => {
   const button = page.locator("button").filter({ hasText: "技能樹編輯" }).first();
