@@ -35,8 +35,7 @@ function check(name, pass, detail) {
 function unpack(file) {
   const source = readFileSync(file, "utf8");
   const match = source.match(/<script type="__bundler\/template">([\s\S]*?)<\/script>/);
-  if (!match) throw new Error(`bundler template missing in ${file}`);
-  return JSON.parse(match[1]);
+  return match ? JSON.parse(match[1]) : source;
 }
 
 function readObject(page, name, next) {
