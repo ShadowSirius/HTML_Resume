@@ -369,12 +369,17 @@ try {
 await page.locator("button").filter({ hasText: /^\+$/ }).click();
 await page.locator("button").filter({ hasText: /^\+$/ }).click();
 await page.waitForTimeout(150);
-const vpBox = await page.locator("#vp").boundingBox();
-if (vpBox) {
-  await page.mouse.move(vpBox.x + 10, vpBox.y + vpBox.height / 2);
-  await page.mouse.down({ button: "right" });
-  await page.mouse.move(vpBox.x + 70, vpBox.y + vpBox.height / 2 + 30, { steps: 6 });
-  await page.mouse.up({ button: "right" });
+const panCursor = await page.locator("#vp").evaluate(node => getComputedStyle(node).cursor);
+check("high-contrast page cursor is installed", /url\(/.test(panCursor) && /grab/.test(panCursor), panCursor);
+
+const pageBox = await page.locator("#a4page").boundingBox();
+if (pageBox) {
+  // Start in the white A4 margin so the gesture pans the whole page, not an editable node.
+  await page.mouse.move(pageBox.x + 8, pageBox.y + pageBox.height / 2);
+  await page.mouse.down({ button: "left" });
+  await page.waitForTimeout(40);
+  await page.mouse.move(pageBox.x + 68, pageBox.y + pageBox.height / 2 + 30, { steps: 6 });
+  await page.mouse.up({ button: "left" });
 }
 const temporaryView = await page.evaluate(() => ({
   fitStyle: document.querySelector("#a4fit")?.getAttribute("style") || "",
